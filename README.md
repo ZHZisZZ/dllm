@@ -107,10 +107,11 @@ pip install -e .
 ### (optional) Evaluation setup
 
 ```bash
-[TODO]
-
-# initialize `lm-evaluation-harness`
+# initialize `lm-evaluation-harness` submodule
 git submodule update --init --recursive
+
+# install submodule in editable mode with IFEval & Math dependencies
+pip install -e "lm-evaluation-harness[ifeval,math]"
 ```
 
 ### (optional) Slurm setup

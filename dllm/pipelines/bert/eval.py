@@ -1,11 +1,13 @@
 """
 accelerate launch \
     --num_processes 2 \
-    dllm/pipelines/llada/eval.py \
+    dllm/pipelines/bert/eval.py \
     --tasks gsm8k \
-    --model llada \
+    --batch_size 1 \
+    --model bert \
+    --device cuda \
     --num_fewshot 8 \
-    --model_args "pretrained=GSAI-ML/LLaDA-8B-Base,is_check_greedy=False,mc_num=1,max_new_tokens=1024,steps=1024,block_length=32,cfg=0.0"
+    --model_args "pretrained=dllm-collection/ModernBERT-base-chat-v0,is_check_greedy=False,mc_num=1,max_new_tokens=1024,steps=1024,block_length=32,cfg=0.0"
 """
 
 from types import SimpleNamespace
@@ -26,12 +28,12 @@ import dllm
 from dllm.pipelines.llada import LLaDAGenerator, LLaDAGeneratorConfig
 
 @dataclass
-class LLaDAEvalConfig(LLaDAGeneratorConfig):
-    max_new_tokens: int = 1024
-    max_length: int = 4096
-    steps: int = 1024
-    block_length: int = 1024
-    
+class BERTEvalConfig(LLaDAGeneratorConfig):
+    max_new_tokens: int = 128
+    max_length: int = 512
+    steps: int = 128
+    block_length: int = 128
+
     pretrained: str = ""
     dtype: str | torch.dtype = "auto"
     batch_size: int = 32
@@ -40,16 +42,19 @@ class LLaDAEvalConfig(LLaDAGeneratorConfig):
     device: str = "cuda"
 
 
-@register_model("llada")
-class LLaDAEvalHarness(LM):
+@register_model("bert")
+class BERTEvalHarness(LM):
     def __init__(
         self,
-        config: LLaDAEvalConfig | None = None,
+        config: BERTEvalConfig | None = None,
         **kwargs,
     ):
         super().__init__()
-        if config is None: config = LLaDAEvalConfig()
-
+        
+        # Initialize config if not provided
+        if config is None:
+            config = BERTEvalConfig()
+        
         # Pull args from config, allow kwargs to override
         pretrained = kwargs.get("pretrained", config.pretrained)
         dtype = kwargs.get("dtype", config.dtype)
@@ -96,11 +101,11 @@ class LLaDAEvalHarness(LM):
             model_name_or_path=pretrained, 
             model=self.model
             ))
-    
+
         # generation params
         self.mask_id = self.tokenizer.mask_token_id
         self.batch_size = int(batch_size)
-        self.max_length = max_length
+        self.max_length = int(max_length)
         self.max_new_tokens = int(max_new_tokens)
         self.block_length = int(block_length)
         self.steps = int(steps)
@@ -111,7 +116,7 @@ class LLaDAEvalHarness(LM):
         # loglikelihood params
         self.mc_num = int(mc_num)
         assert mc_num % self.batch_size == 0
-        self.sampling_eps = 0.   
+        self.sampling_eps = 0. 
 
     def apply_chat_template(self, chat_history: list[dict[str, str]],add_generation_prompt: bool = True) -> str:
         """
@@ -269,7 +274,7 @@ class LLaDAEvalHarness(LM):
     def loglikelihood_rolling(self, requests: list[Instance]) -> list[float]:
         raise NotImplementedError
 
-    def generate_until(self, requests: list[Instance]) -> list[str]:
+    def generate_until(self, requests: list[Instance]):
         def _tokenize(e):
             return {
                 "question": self.tokenizer(e["question"])["input_ids"],
@@ -286,7 +291,7 @@ class LLaDAEvalHarness(LM):
         generator = LLaDAGenerator(model=self.model, tokenizer=self.tokenizer)
         
         for elem in tqdm(ds, desc="Generating..."):
-            prompt = [elem["question"].to(self.device)]
+            prompt = [elem["question"][1:-1].to(self.device)]
             stop_tokens = elem["until"]
             generated_ids = generator.generate(
                 inputs=prompt, 
@@ -297,6 +302,7 @@ class LLaDAEvalHarness(LM):
                 cfg_scale=self.cfg, 
                 remasking=self.remasking)
             generated_answer = self.tokenizer.decode(generated_ids[0][prompt[0].shape[0]:], skip_special_tokens=False)
+            breakpoint()
             for stop_seq in stop_tokens:
                 if stop_seq in generated_answer:
                     generated_answer = generated_answer.split(stop_seq)[0]
