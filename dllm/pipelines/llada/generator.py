@@ -46,9 +46,11 @@ class LLaDAGenerator(BaseGenerator):
     def generate(
         self,
         inputs: list[torch.Tensor | list], 
-        config: LLaDAGeneratorConfig = LLaDAGeneratorConfig(), 
+        config: LLaDAGeneratorConfig | None = None, 
         **kwargs
     ) -> GeneratorOutput | torch.Tensor:
+        if config is None:
+            config = LLaDAGeneratorConfig()
 
         # ----- pull args from config, allow kwargs to override -----
         steps = kwargs.get("steps", config.steps)

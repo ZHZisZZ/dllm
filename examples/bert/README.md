@@ -42,6 +42,8 @@ accelerate launch --config_file scripts/accelerate_configs/ddp.yaml --num_proces
     examples/bert/pt.py \
     --model_name_or_path "answerdotai/ModernBERT-large" \
     --dataset_args "Trelis/tiny-shakespeare" \
+    --text_field "Text" \
+    --insert_eos False \
     --max_length 128 \
     --num_train_epochs 20 \
     --per_device_train_batch_size 64 \

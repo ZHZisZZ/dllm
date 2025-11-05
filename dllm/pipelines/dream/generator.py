@@ -73,7 +73,7 @@ class DreamGenerator(BaseGenerator):
     def generate(
         self,
         inputs: list[torch.Tensor, list], 
-        config: DreamGeneratorConfig = DreamGeneratorConfig(), 
+        config: DreamGeneratorConfig | None = None, 
         generation_tokens_hook_func=lambda step, x, logits: x,
         generation_logits_hook_func=lambda step, x, logits: logits,
         **kwargs
@@ -82,6 +82,9 @@ class DreamGenerator(BaseGenerator):
         Diffusion-style masked decoding for *generation from inputs*.
         (docstring unchanged)
         """
+        if config is None:
+            config = DreamGeneratorConfig()
+
         # ----- pull args from config, allow kwargs to override -----
         max_new_tokens = kwargs.get("max_new_tokens", config.max_new_tokens)
         max_length = kwargs.get("max_length", config.max_length)

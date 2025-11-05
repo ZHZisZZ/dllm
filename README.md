@@ -64,7 +64,7 @@ Simple Diffusion Language Modeling
     <summary>🎬 Click to show BERT Chat Demo</summary>
 
     <p align="center">
-        <img src="/examples/bert/assets/chat.gif" alt="chat" width="70%">
+        <img src="/examples/bert/assets/chat.gif" alt="chat" width="80%">
     </p>
     <p align="center">
     <em>

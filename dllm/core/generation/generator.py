@@ -22,14 +22,18 @@ class GeneratorConfig:
 class BaseGenerator(ABC):
     model: PreTrainedModel
     tokenizer: PreTrainedTokenizer
-    scheduler: BaseAlphaScheduler = LinearAlphaScheduler()
+    scheduler: BaseAlphaScheduler | None = None
+
+    def __post_init__(self):
+        if self.scheduler is None:
+            self.scheduler = LinearAlphaScheduler()
 
     @abstractmethod
     @torch.no_grad()
     def generate(
         self,
         prompts: list[torch.Tensor, list], 
-        config: GeneratorConfig = GeneratorConfig(), 
+        config: GeneratorConfig | None = None, 
         **kwargs
     ) -> GeneratorOutput:
         raise NotImplementedError
@@ -39,7 +43,7 @@ class BaseGenerator(ABC):
     def infill(
         self,
         inputs: list[torch.Tensor, list], 
-        config: GeneratorConfig = GeneratorConfig(), 
+        config: GeneratorConfig | None = None, 
         **kwargs
     ) -> GeneratorOutput:
         raise NotImplementedError
