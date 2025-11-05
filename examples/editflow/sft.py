@@ -44,7 +44,7 @@ class DataArguments(dllm.utils.DataArguments):
 class TrainingArguments(dllm.utils.TrainingArguments):
     output_dir: str = None  # overwrite this
     per_device_train_batch_size: int = 2
-    gradient_accumulation_steps: int = 2
+    per_device_eval_batch_size: int = 2
     learning_rate: float = 5e-5
     # EditFlow specific args
     scheduler_cls: str = field(
@@ -148,7 +148,10 @@ def train(
 
     # ----- Dataset ----------------------------------------------------------------
     with accelerate.PartialState().local_main_process_first():
-        dataset = dllm.data.load_sft_dataset(data_args.dataset_args)
+        dataset = dllm.data.load_sft_dataset(
+            data_args.dataset_args,
+            load_preprocessed_data=data_args.load_preprocessed_data,
+        )
         if not data_args.load_preprocessed_data:
             map_fn = partial(
                 sft_map_fn,

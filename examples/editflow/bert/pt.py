@@ -1,12 +1,3 @@
-"""
-    accelerate launch \
-        --config_file scripts/accelerate_configs/ddp.yaml --num_processes 1 \
-        examples/editflow/bert/pt.py
-
-
-PYTHONPATH=. srun -p $PARTITION --quotatype=$QUOTATYPE --gres=gpu:1 --cpus-per-task=24 --time=03:00:000 accelerate launch --config_file scripts/accelerate_configs/ddp.yaml --num_processes 1 examples/editflow/bert/pt.py
-"""
-
 from dataclasses import dataclass
 
 import transformers
@@ -26,6 +17,8 @@ class DataArguments(editflow_pt.DataArguments):
     text_field: str = "Text"
     max_length: int = 128
     streaming: bool = False
+    drop_tail: bool = True
+    insert_eos: bool = False
 
 
 @dataclass

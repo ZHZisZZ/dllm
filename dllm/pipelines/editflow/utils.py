@@ -78,9 +78,11 @@ class EditFlowCollator:
         batch["x1_ids"] = batch["input_ids"]
 
         if "prompt_len" not in batch:
-            assert all(
-                x1_ids[0] == self.tokenizer.bos_token_id for x1_ids in batch["x1_ids"]
-            )
+            assert self.tokenizer.bos_token_id is not None
+            bos = self.tokenizer.bos_token_id
+            batch["x1_ids"] = [
+                x if x and x[0] == bos else [bos] + x for x in batch["x1_ids"]
+            ]
             batch["x0_ids"] = [
                 x1_ids[:1] + self.x0_sampler(x1_ids=x1_ids[1:])
                 for x1_ids in batch["x1_ids"]

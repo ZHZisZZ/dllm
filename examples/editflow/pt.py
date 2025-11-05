@@ -2,7 +2,6 @@ import os
 import functools
 from dataclasses import dataclass, field
 
-import torch
 import transformers
 import accelerate
 
@@ -35,6 +34,13 @@ class DataArguments(dllm.utils.DataArguments):
     dataset_args: str = "mlfoundations/dclm-baseline-1.0[train:10_000_000,test:10_000]"
     text_field: str = "text"
     streaming: bool = False
+    drop_tail: bool = True
+    insert_eos: bool = field(
+        default=True,
+        metadata={
+            "help": "False when adjacent samples from the datasets are semantically coherent."
+        },
+    )
 
 
 @dataclass
@@ -45,7 +51,6 @@ class TrainingArguments(dllm.utils.TrainingArguments):
     # max_steps: int = 2_000
     per_device_train_batch_size: int = 3
     per_device_eval_batch_size: int = 3
-    gradient_accumulation_steps: int = 1
     eval_steps: float = 0.1
     save_steps: float = 0.1
     # EditFlow specific args
@@ -122,38 +127,24 @@ def train(
     tokenizer = dllm.utils.get_tokenizer(model_args=model_args)
 
     # ----- Dataset ----------------------------------------------------------------
-    def pt_map_fn(
-        row,
-        tokenizer: transformers.PreTrainedTokenizer,
-    ) -> dict:
-        input_ids = tokenizer.encode(
-            row[data_args.text_field],
-            add_special_tokens=False,
-        )
-        if input_ids[0] != tokenizer.bos_token_id:
-            input_ids = [tokenizer.bos_token_id] + input_ids
-        return {"input_ids": input_ids}
-
     with accelerate.PartialState().local_main_process_first():
         dataset = dllm.data.load_pt_dataset(
-            data_args.dataset_args,
+            data_args.dataset_args, 
             streaming=data_args.streaming,
         )
         dataset = dataset.map(
-            functools.partial(pt_map_fn, tokenizer=tokenizer),
+            functools.partial(
+                dllm.utils.tokenize_and_group, 
+                tokenizer=tokenizer, 
+                text_field=data_args.text_field, 
+                seq_length=data_args.max_length, 
+                insert_eos=data_args.insert_eos,
+                drop_tail=data_args.drop_tail),
+            batched=True,
             num_proc=None if data_args.streaming else data_args.num_proc,
+            remove_columns=dataset["train"].column_names,
         )
-        # TODO: see whether we need this
-        if data_args.streaming:
-            dataset = dllm.utils.post_process_dataset_streaming(
-                dataset, data_args
-            )  # truncate / filter long sequences if needed
-        else:
-            dataset = dllm.utils.post_process_dataset(
-                dataset, data_args
-            )
-        if data_args.streaming:
-            dataset = dataset.shuffle(seed=training_args.seed)
+        if data_args.streaming: dataset = dataset.shuffle(seed=training_args.seed)
 
     # ----- Training --------------------------------------------------------------
     accelerate.PartialState().wait_for_everyone()

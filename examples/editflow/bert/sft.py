@@ -1,9 +1,3 @@
-"""
-PYTHONPATH=. srun -p $PARTITION --quotatype=$QUOTATYPE --gres=gpu:8 --cpus-per-task=24 --time=03:00:000 accelerate launch --config_file scripts/accelerate_configs/ddp.yaml --num_processes 8 examples/editflow/bert/sft.py --model_name_or_path "answerdotai/ModernBERT-base" --output_dir "models/EditFlow/ModernBERT-base/alpaca"
-
-PYTHONPATH=. srun -p $PARTITION --quotatype=$QUOTATYPE --gres=gpu:8 --cpus-per-task=24 --time=03:00:000 accelerate launch --config_file scripts/accelerate_configs/ddp.yaml --num_processes 8 examples/editflow/bert/sft.py --model_name_or_path "answerdotai/ModernBERT-large" --output_dir "models/EditFlow/ModernBERT-large/alpaca"
-"""
-
 from dataclasses import dataclass
 
 import transformers

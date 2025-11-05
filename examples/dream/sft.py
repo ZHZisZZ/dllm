@@ -142,7 +142,10 @@ def train():
 
     # ----- Dataset ----------------------------------------------------------------
     with accelerate.PartialState().local_main_process_first():
-        dataset = dllm.data.load_sft_dataset(data_args.dataset_args)
+        dataset = dllm.data.load_sft_dataset(
+            data_args.dataset_args,
+            load_preprocessed_data=data_args.load_preprocessed_data,
+        )
         if not data_args.load_preprocessed_data:
             map_fn = partial(
                 sft_map_fn,
