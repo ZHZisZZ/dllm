@@ -98,9 +98,6 @@ conda install cuda=12.4 -c nvidia
 pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
     --index-url https://download.pytorch.org/whl/cu124
 
-# install requirements
-pip install -r requirements.txt
-
 # install dllm package
 pip install -e .
 ```

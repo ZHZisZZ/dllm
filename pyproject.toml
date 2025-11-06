@@ -1,10 +1,44 @@
+[project]
+name = "dllm"
+version = "0.1.0"
+description = "dLLM: Simple Diffusion Language Modeling"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "transformers==4.57.0",
+    "accelerate==1.11.0",
+    "deepspeed==0.18.0",
+    "peft==0.17.1",
+    "datasets==4.2.0",
+    "sentencepiece==0.2.0",
+    "tyro",
+    "wandb",
+    "omegaconf",
+    "tqdm",
+    "matplotlib",
+    "pytest",
+    "rich",
+]
+
+[project.optional-dependencies]
+optional = [
+    "bitsandbytes==0.48.1",
+    "vllm==0.8.5.post1",
+    "flash-attn==2.8.3",
+]
+
 [tool.black]
 line-length = 88
 exclude = '''
 (
-  /dllm/pipelines/llada/models/
-  /dllm/pipelines/dream/models/
-  /dllm/pipelines/rnd/models/
-  /dllm/pipelines/qwen2/models/
+  dllm/pipelines/llada/models/
+  dllm/pipelines/dream/models/
+  dllm/pipelines/rnd/models/
+  dllm/pipelines/qwen2/models/
 )
 '''
+
+[tool.pytest.ini_options]
+testpaths = ["scripts/tests"]
+python_files = ["test_*.py"]
+addopts = "-v -ra"
