@@ -31,9 +31,10 @@ dllm/pipelines/dream
 ├── trainer.py                      # Training logic (pretraining and SFT)
 └── utils.py                        # Auxiliary utilities and helper functions
 
-# example entry points for training / inference
+# example entry points for training / inference / evaluation
 examples/dream
 ├── chat.py                         # Interactive inference example
+├── eval.sh                         # Automatic evaluation script
 ├── generate.py                     # Inference example
 ├── pt.py                           # Pretraining example
 ├── README.md                       # Documentation (you are here)

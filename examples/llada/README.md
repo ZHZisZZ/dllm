@@ -36,9 +36,10 @@ dllm/pipelines/llada
 ├── generator.py                    # Inference logic
 └── trainer.py                      # Training logic (pretraining and finetuning)
 
-# example entry points for training / inference
+# example entry points for training / inference / evaluation
 examples/llada
 ├── chat.py                         # Interactive inference example
+├── eval.sh                         # Automatic evaluation script
 ├── generate.py                     # Inference example
 ├── pt.py                           # Pretraining example
 ├── README.md                       # Documentation (you are here)

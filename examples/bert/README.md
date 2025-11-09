@@ -19,15 +19,15 @@ This directory provides two key sets of resources:
 
 ## Files overview
 ```
-# example entry points for training / inference
+# example entry points for training / inference / evaluation
 examples/bert
 ├── chat.py                         # Interactive inference example
+├── eval.sh                         # Automatic evaluation script
 ├── generate.py                     # Inference example
 ├── pt.py                           # Pretraining example
 ├── README.md                       # Documentation (you are here)
 └── sft.py                          # Supervised finetuning example
 ```
-
 
 ## Warmup
 
