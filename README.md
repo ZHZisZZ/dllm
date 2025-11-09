@@ -12,42 +12,27 @@ Simple Diffusion Language Modeling
 
 
 ## Overview
-**dLLM** is a library offering unified implementations for training and evaluating **diffusion language models**. It brings transparency to the entire development pipeline, making reproduction of open-weight diffusion language models much easier. Below are some of the key features that make dLLM special:
+**dLLM** is a library that unifies the training and evaluation of **diffusion language models**, bringing transparency and reproducibility to the entire development pipeline:
 
  <!-- and [RND1](https://www.radicalnumerics.ai/assets/rnd1_report.pdf) -->
 
-- dLLM provides modular training pipelines (inspired by [Transformers Trainer](https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py)), which scales easily with [LoRA](https://github.com/huggingface/peft) and [DeepSpeed](https://github.com/deepspeedai/DeepSpeed) / [FSDP](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) and beyond.
+- dLLM provides scalable training pipelines (inspired by [`transformers`](https://github.com/huggingface/transformers/blob/main/src/transformers) [Trainer](https://github.com/huggingface/transformers/blob/main/src/transformers/trainer.py)), with support for [LoRA](https://github.com/huggingface/peft), [DeepSpeed](https://github.com/deepspeedai/DeepSpeed) and [FSDP](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) and beyond.
 
-- dLLM provides unified evaluation pipelines (inspired by [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness)), abstracting away inference details and making customization simple.
+- dLLM provides unified evaluation pipelines (inspired by [`lm-evaluation-harness`](https://github.com/EleutherAI/lm-evaluation-harness)) that abstracts away inference details and making customization simple.
 
-- With these modules, we provide the minimal **pretraining / finetuning / evaluation** recipes for a variety of open-weight models (e.g., [LLaDA](https://arxiv.org/abs/2502.09992) and [Dream](https://arxiv.org/abs/2508.15487)), and implementations of various training algorithms (e.g., [Edit Flows](https://arxiv.org/abs/2506.09018)).
+- Built on these components, dLLM provide the minimal **pretraining / finetuning / evaluation** recipes for open-weight models (e.g., [LLaDA](https://arxiv.org/abs/2502.09992) and [Dream](https://arxiv.org/abs/2508.15487)), and implementations of training algorithms (e.g., [Edit Flows](https://arxiv.org/abs/2506.09018)).
 
 <!-- > [!NOTE]
 > This repository is primarily for educational purposes and does not aim for 100% exact reproduction of official models (which is impossible). We hope it serves as a helpful reference for the community — contributions and improvements are always welcome! -->
 
 
 ## News
-**[2025/11]** We released a collection of BERTs finetuned for instruction-following: [`ModernBERT-{large,base}-chat-v0`](https://huggingface.co/collections/dllm-collection/bert-chat). This proof-of-concept shows that BERT’s internal knowledge can be leveraged for generative tasks via masked instruction tuning. See [![blog](https://img.shields.io/badge/W&B-white?logo=weightsandbiases) BERT Chat Report](https://wandb.ai/asap-zzhou/dllm/reports/dLLM-BERT-Chat--VmlldzoxNDg0MzExNg) for detailed recipes, experimental results and lessons learned; See [`examples/bert`](/examples/bert) for train / inference / evaluation instructions.
+**[2025/11]** We released a collection of BERTs finetuned for instruction-following: [`ModernBERT-{large,base}-chat-v0`](https://huggingface.co/collections/dllm-collection/bert-chat). This proof-of-concept shows that BERT’s internal knowledge can be leveraged for generative tasks via masked instruction tuning. See [![blog](https://img.shields.io/badge/W&B-white?logo=weightsandbiases) BERT Chat Report](https://wandb.ai/asap-zzhou/dllm/reports/dLLM-BERT-Chat--VmlldzoxNDg0MzExNg) for detailed recipes, experimental results and lessons learned; See [`examples/bert`](/examples/bert) for training / inference / evaluation instructions.
 
-<!-- <details>
-<summary>🎬 Click to show BERT Chat Demo</summary>
-
-<p align="center">
-    <img src="/examples/bert/assets/chat.gif" alt="chat" width="70%">
-</p>
-<p align="center">
-<em>
-    Chat with <a href="https://huggingface.co/dllm-collection/ModernBERT-large-chat-v0"><code>ModernBERT-large-chat-v0</code></a>. See <a href="/examples/bert/README.md/#inference">Inference</a> for details.
-</em>
-</p>
-</details> -->
 
 ## Table of Contents
-<!-- - [Overview](#overview) -->
 - [Features](#features)
 - [Setup](#setup)
-  <!-- - [Installation](#installation)
-  - [(optional) Slurm setup](#optional-slurm-setup) -->
 - [Files overview](#files-overview)
 - [Training](#training)
 - [Inference](#inference)
@@ -218,7 +203,6 @@ sbatch --nodes=2 --gres=gpu:8 scripts/train.slurm.sh \
 See [Features](#features) for specific training recipes.
 
 
-> [!NOTE]
 > Here are some useful tips for training:
 > 1. Use a subset of data:
 > `--dataset_args "allenai/tulu-3-sft-mixture[train:10000,test:1000]"`

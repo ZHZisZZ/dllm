@@ -1,16 +1,13 @@
 # LLaDA
 
-> 📄 Paper: [Large Language Diffusion Models](https://arxiv.org/abs/2502.09992)
-> 💻 Code: [github.com/ML-GSAI/LLaDA](https://github.com/ML-GSAI/LLaDA)
+> 📄 Paper: [Large Language Diffusion Models](https://arxiv.org/abs/2502.09992) | 💻 Code: [github.com/ML-GSAI/LLaDA](https://github.com/ML-GSAI/LLaDA)
 
-This directory provides examples for (1) finetuning open-weight LLaDA models, (2) pretraining from scratch on public data, (3) interactive inference and (4) evaluation.
+Resources and examples for training (finetuning & pretraining) and evaluating diffusion language models **LLaDA**.
 
 ## Table of Contents
 - [Setup](#setup)
 - [Files overview](#files-overview)
 - [Training](#training)
-    <!-- - [Finetuning LLaDA-8B-Base](#finetuning-llada-8b-base)
-    - [Pretraining from scratch](#pretraining-from-scratch) -->
 - [Inference](#inference)
 - [Evaluation](#evaluation)
 
@@ -60,15 +57,6 @@ examples/llada
 > ``` -->
 
 ## Training
-
-<!-- > [!NOTE]
-> Here are some useful tips for training:
-> - Use a subset of data: `--dataset_args "allenai/tulu-3-sft-mixture[train:10000,test:1000]"`; 
-> 
-> - Concatenate datasets: `--dataset_args "allenai/tulu-3-sft-mixture|HuggingFaceTB/smoltalk"`;
->
-> - Train with LoRA and 4bit quantization: `--load_in_4bit True --lora True`. -->
-
 ### Finetuning
 
 For example, to SFT [`LLaDA-8B-Base`](https://huggingface.co/GSAI-ML/LLaDA-8B-Base) for instruction following on 8 GPUs, run:
@@ -133,9 +121,6 @@ sbatch --nodes=24 --gres=gpu:8 scripts/train.slurm.sh \
 
 
 ### Pretraining
-<!-- > [!NOTE] 
-> 
-> This is an educational example demonstrating how to reproduce LLaDA pretraining and finetuning on public data. We do not guarantee performance comparable to the official LLaDA models. -->
 
 Pretrain on [`mlfoundations/dclm-baseline-1.0`](https://huggingface.co/datasets/mlfoundations/dclm-baseline-1.0) from scratch using 192 GPUs (24x8) and FSDP:
 ```shell
@@ -183,44 +168,37 @@ bash examples/llada/eval.sh --model_name_or_path GSAI-ML/LLaDA-8B-Instruct --ins
 bash examples/llada/eval.sh --model_name_or_path GSAI-ML/LLaDA-8B-Base --instruct False
 ```
 
-### Evaluation Results
+### Evaluation results
 
-> Evaluated results are obtained using our own evaluation framework, while Reported results refer to those from the original paper.  
+<!-- > Evaluated results are obtained using our own evaluation framework, while Reported results refer to those from the original paper.  
 > All evaluation parameters follow the configurations in the [LLaDA](https://github.com/ML-GSAI/LLaDA) repository.  
 > Since the original evaluations were conducted with OpenCompass, task settings were adjusted for compatibility with the LLaDA model under `lm-eval`.  
-> Complete evaluation results will be released soon.
+> Complete evaluation results will be released soon. -->
 
+>  Results (evaluated) are from our framework, while results (reported) come from the original paper. All evaluation settings follow the configurations in the [LLaDA](https://github.com/ML-GSAI/LLaDA) repository, with minor adjustments. Placeholder entries (“–”) indicate results not yet evaluated; full results will be released soon.
 
-<div align="center" style="min-width:1300px;">
+<!-- <div align="center" style="min-width:1300px;"> -->
 
-|  | MMLU | BBH | ARC&#8209;C | Hellaswag | TruthfulQA | WinoGrande | PIQA | GSM8K | Math | GPQA | HumanEval | MBPP | CEval | CMMLU |
+|               | MMLU | BBH | ARC&#8209;C | Hellaswag | TruthfulQA | WinoGrande | PIQA | GSM8K | Math | GPQA | HumanEval | MBPP | CEval | CMMLU |
 |:----------------|:----:|:---:|:-----:|:-----------:|:-----------:|:------------:|:----:|:-----:|:----:|:----:|:-----------:|:----:|:------:|:------:|
 | [`LLaDA-8B-Base`](https://huggingface.co/GSAI-ML/LLaDA-8B-Base)(reported)| 0.659 | 0.497 | 0.459 | 0.705 | 0.461 | 0.748 | 0.736 | 0.703 | 0.314 | 0.252 | 0.354 | 0.400 | 0.705 | 0.699 |
 | [`LLaDA-8B-Base`](https://huggingface.co/GSAI-ML/LLaDA-8B-Base)(evaluated)| 0.658 | – | 0.457 | 0.693 | 0.456 | 0.707 | 0.706 | 0.704 | – | – | 0.323 | 0.388 | 0.702 | 0.699 |
 
-</div>
-
 <p align="center" style="color: #808080; font-size: 0.9em;">
-Table 1. Evaluation Results of 
+Table 1. Evaluation results of 
 <a href="https://huggingface.co/GSAI-ML/LLaDA-8B-Base" style="color: #808080; text-decoration: none;">
 <code>LLaDA-8B-Base</code>
-</a>
+</a>.
 </p>
 
-<div align="center" style="min-width:1300px;">
-
-|  | MMLU | MMLU&#8209;Pro | ARC&#8209;C | Hellaswag | GSM8K | Math | GPQA | HumanEval | MBPP | 
+|                 | MMLU | MMLU&#8209;Pro | ARC&#8209;C | Hellaswag | GSM8K | Math | GPQA | HumanEval | MBPP | 
 |:----------------|:----:|:---------:|:-----:|:-----------:|:-----:|:----:|:----:|:-----------:|:----:|
 | [`LLaDA-8B-Instruct`](https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct)(reported) | 0.655 | 0.370 | 0.885 | 0.746 | 0.694 | 0.319 | 0.333 | 0.494 | 0.410 |
 | [`LLaDA-8B-Instruct`](https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct)(evaluated) | 0.673 | 0.362 | 0.866 | 0.767 | 0.811 | – | – | 0.650 | 0.702 |
 
-</div>
-
 <p align="center" style="color: #808080; font-size: 0.9em;">
-Table 2. Evaluation Results of 
+Table 2. Evaluation results of 
 <a href="https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct" style="color: #808080; text-decoration: none;">
 <code>LLaDA-8B-Instruct</code>
-</a>
+</a>.
 </p>
-
-
