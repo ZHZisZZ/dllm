@@ -183,26 +183,44 @@ bash examples/llada/eval.sh --model_name_or_path GSAI-ML/LLaDA-8B-Instruct --ins
 bash examples/llada/eval.sh --model_name_or_path GSAI-ML/LLaDA-8B-Base --instruct False
 ```
 
-> [!IMPORTANT]  
-> 1. *Evaluated* results are obtained using our own evaluation framework, while *Reported* results refer to those from the original paper.  
-> 2. All evaluation parameters follow the configurations in the [LLaDA](https://github.com/ML-GSAI/LLaDA) repository. Since the original evaluations were conducted with OpenCompass, task settings were adjusted for compatibility with the LLaDA model under `lm-eval`.  
-> 3. Complete evaluation results will be released soon.
+### Evaluation Results
+
+> Evaluated results are obtained using our own evaluation framework, while Reported results refer to those from the original paper.  
+> All evaluation parameters follow the configurations in the [LLaDA](https://github.com/ML-GSAI/LLaDA) repository.  
+> Since the original evaluations were conducted with OpenCompass, task settings were adjusted for compatibility with the LLaDA model under `lm-eval`.  
+> Complete evaluation results will be released soon.
 
 
+<div align="center" style="min-width:1300px;">
 
-### Evaluation Method of LLaDA-8B-Base
-
-| Evaluation Type | MMLU | BBH | ARC-C | Hellaswag | TruthfulQA | WinoGrande | PIQA | GSM8K | Math | GPQA | HumanEval | MBPP | CEval | CMMLU |
+|  | MMLU | BBH | ARC&#8209;C | Hellaswag | TruthfulQA | WinoGrande | PIQA | GSM8K | Math | GPQA | HumanEval | MBPP | CEval | CMMLU |
 |:----------------|:----:|:---:|:-----:|:-----------:|:-----------:|:------------:|:----:|:-----:|:----:|:----:|:-----------:|:----:|:------:|:------:|
-| **Reported** | 0.659 | 0.497 | 0.459 | 0.705 | 0.461 | 0.748 | 0.736 | 0.703 | 0.314 | 0.252 | 0.354 | 0.400 | 0.705 | 0.699 |
-| **Evaluated** | 0.658 | – | 0.457 | 0.693 | 0.456 | 0.707 | 0.706 | 0.704 | – | - | 0.323 | 0.388 | 0.702 | 0.699 |
+| [`LLaDA-8B-Base`](https://huggingface.co/GSAI-ML/LLaDA-8B-Base)(reported)| 0.659 | 0.497 | 0.459 | 0.705 | 0.461 | 0.748 | 0.736 | 0.703 | 0.314 | 0.252 | 0.354 | 0.400 | 0.705 | 0.699 |
+| [`LLaDA-8B-Base`](https://huggingface.co/GSAI-ML/LLaDA-8B-Base)(evaluated)| 0.658 | – | 0.457 | 0.693 | 0.456 | 0.707 | 0.706 | 0.704 | – | – | 0.323 | 0.388 | 0.702 | 0.699 |
 
+</div>
 
-### Evaluation Method of LLaDA-8B-Instruct
+<p align="center" style="color: #808080; font-size: 0.9em;">
+Table 1. Evaluation Results of 
+<a href="https://huggingface.co/GSAI-ML/LLaDA-8B-Base" style="color: #808080; text-decoration: none;">
+<code>LLaDA-8B-Base</code>
+</a>
+</p>
 
-| Evaluation Type | MMLU | MMLU-Pro | ARC-C | Hellaswag | GSM8K | Math | GPQA | HumanEval | MBPP | CEval | CMMLU |
-|:----------------|:----:|:---------:|:-----:|:-----------:|:-----:|:----:|:----:|:-----------:|:----:|:------:|:------:|
-| **Reported** | 0.655 | 0.370 | 0.885 | 0.746 | 0.694 | 0.319 | 0.333 | 0.494 | 0.410 | – | – |
-| **Evaluated** | 0.673 | 0.362 | 0.866 | 0.767 | 0.811 | – | – | 0.650 | 0.702 | – | – |
+<div align="center" style="min-width:1300px;">
+
+|  | MMLU | MMLU&#8209;Pro | ARC&#8209;C | Hellaswag | GSM8K | Math | GPQA | HumanEval | MBPP | 
+|:----------------|:----:|:---------:|:-----:|:-----------:|:-----:|:----:|:----:|:-----------:|:----:|
+| [`LLaDA-8B-Instruct`](https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct)(reported) | 0.655 | 0.370 | 0.885 | 0.746 | 0.694 | 0.319 | 0.333 | 0.494 | 0.410 |
+| [`LLaDA-8B-Instruct`](https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct)(evaluated) | 0.673 | 0.362 | 0.866 | 0.767 | 0.811 | – | – | 0.650 | 0.702 |
+
+</div>
+
+<p align="center" style="color: #808080; font-size: 0.9em;">
+Table 2. Evaluation Results of 
+<a href="https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct" style="color: #808080; text-decoration: none;">
+<code>LLaDA-8B-Instruct</code>
+</a>
+</p>
 
 

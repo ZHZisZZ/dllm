@@ -164,30 +164,47 @@ accelerate launch --num_processes 4 \
 
 To automatically evaluate [`Dream-v0-Base-7B`](https://huggingface.co/Dream-org/Dream-v0-Base-7B) and [`Dream-v0-Instruct-7B`](https://huggingface.co/Dream-org/Dream-v0-Instruct-7B) on all benchmarks, run:
 ```shell
-bash examples/llada/eval.sh --model_name_or_path "Dream-org/Dream-v0-Instruct-7B" --instruct True
-bash examples/llada/eval.sh --model_name_or_path "Dream-org/Dream-v0-Base-7B" --instruct False
+bash examples/dream/eval.sh --model_name_or_path "Dream-org/Dream-v0-Instruct-7B" --instruct True
+bash examples/dream/eval.sh --model_name_or_path "Dream-org/Dream-v0-Base-7B" --instruct False
 ```
 
-> [!IMPORTANT]  
-> 1. *Evaluated* results are obtained from our own evaluation framework, while *Reported* results come from the original paper.  
-> 2. All evaluation settings follow the configurations in the [Dream](https://github.com/DreamLM/Dream) repository, with minor adjustments for compatibility.  
-> 3. Full evaluation results will be released soon.
+### Evaluation Results
+
+> Evaluated results are obtained using our own evaluation framework, while Reported results are taken from the original paper.  
+> All evaluation settings follow the configurations in the [Dream](https://github.com/DreamLM/Dream) repository, with minor adjustments for compatibility.  
+> Full evaluation results will be released soon.
+
+<div align="center" style="min-width:1500px;">
+
+|  | MMLU | BBH | ARC&#8209;C  | ARC&#8209;E | Hellaswag | WinoGrande | PIQA | GSM8K | Math | GPQA | HumanEval | MBPP | RACE | Countdown | Sudoku | Trip&nbsp;planning | 
+|:----------------|:-------:|:-------:|:-----:|:-----:|:-----------:|:------------:|:----:|:-----:|:----:|:----:|:-----------:|:----:|:------:|:-----------:|:----:|:-----------:|
+| [`Dream-v0-Base-7B`](https://huggingface.co/Dream-org/Dream-v0-Base-7B)(reported) | 0.695 | 0.579 | 0.599 | 0.839 | 0.733 | 0.748 | 0.758 | 0.772 | 0.396 | 0.366 | 0.579 | 0.562 | 0.447 | 0.160 | 0.810 | 0.178 |
+| [`Dream-v0-Base-7B`](https://huggingface.co/Dream-org/Dream-v0-Base-7B)(evaluated) | – | – | 0.597 | 0.833 | 0.731 | 0.729 | 0.720 | 0.696 | – | 0.355 | 0.458 | – | 0.430 | – | – | – |
+</div>
 
 
+<p align="center" style="color: #808080; font-size: 0.9em;">
+Table 1. Evaluation Results of 
+<a href="https://huggingface.co/Dream-org/Dream-v0-Base-7B" style="color: #808080; text-decoration: none;">
+<code>Dream-8B-Base</code>
+</a>
+</p>
 
-### Evaluation Method of Dream-8B-Base
 
-| Evaluation Type | MMLU | BBH | ARC-C | ARC-E | Hellaswag | WinoGrande | PIQA | GSM8K | Math | GPQA | HumanEval | MBPP | RACE |
-|:----------------|:----:|:---:|:-----:|:-----:|:-----------:|:------------:|:----:|:-----:|:----:|:----:|:-----------:|:----:|:------:|
-| Reported | 0.695 | 0.579 | 0.599 | 0.839 | 0.733 | 0.748 | 0.758 | 0.772 | 0.396 | 0.366 | 0.579 | 0.562 | 0.447 |
-| Evaluated | - | – | - | - | - | - | - | 0.696 | – | - | - | - | 0.304 |
+<div align="center" style="min-width:1500px;">
 
+|  | MMLU | MMLU-Pro | GSM8K | Math | GPQA | HumanEval | MBPP | IFEval |
+|:----------------|:----:|:---------:|:-----:|:----:|:----:|:-----------:|:----:|:----:|
+| [`Dream-v0-Instruct-7B`](https://huggingface.co/Dream-org/Dream-v0-Instruct-7B)(reported) | 0.670 | 0.433 | 0.810 | 0.392 | 0.330 | 0.555 | 0.588 | 0.625 |
+| [`Dream-v0-Instruct-7B`](https://huggingface.co/Dream-org/Dream-v0-Instruct-7B)(evaluated) | – | 0.430 | 0.826 | 0.399 | 0.324 | 0.591 | – |  0.623 | 
 
-### Evaluation Method of Dream-8B-Instruct
+</div>
 
-| Evaluation Type | MMLU | MMLU-Pro | GSM8K | Math | GPQA | HumanEval | MBPP |
-|:----------------|:----:|:---------:|:-----:|:----:|:----:|:-----------:|:----:|
-| Reported | 0.670 | 0.433 | 0.810 | 0.392 | 0.330 | 0.555 | 0.588 |
-| Evaluated | – | – | 0.826 | – | - | 0.591 | – |
+<p align="center" style="color: #808080; font-size: 0.9em;">
+Table 2. Evaluation Results of 
+<a href="https://huggingface.co/Dream-org/Dream-v0-Instruct-7B" style="color: #808080; text-decoration: none;">
+<code>Dream-8B-Instruct</code>
+</a>
+</p>
 
 

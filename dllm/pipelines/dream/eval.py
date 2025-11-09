@@ -36,7 +36,8 @@ class DreamEvalConfig(DreamGeneratorConfig):
     top_k: float | None = None
     max_new_tokens: int = 128
     max_length: int = 2048
-    steps: int = 128,
+    steps: int = 128
+    temperature: float = 0.0
     alg: str = "entropy"
 
     pretrained: str = ""

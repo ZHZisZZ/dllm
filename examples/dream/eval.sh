@@ -80,23 +80,23 @@ else
     # Base Generation Tasks
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks humaneval --num_fewshot 0 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.2,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},max_new_tokens=512,steps=512,temperature=0.2,top_p=0.95,add_bos_token=true,escape_until=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks gsm8k_cot --num_fewshot 8 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=256,max_length=256,steps=256,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks mbpp --num_fewshot 3 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.2,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},max_new_tokens=512,steps=512,temperature=0.2,top_p=0.95,add_bos_token=true,escape_until=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks minerva_math --num_fewshot 4 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},max_new_tokens=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks bbh --num_fewshot 3 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},max_new_tokens=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
 fi
 
 
@@ -107,33 +107,33 @@ fi
 if [ "$instruct" != "True" ]; then
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks mmlu --num_fewshot 5 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},add_bos_token=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks arc_easy --num_fewshot 0 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},add_bos_token=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks arc_challenge --num_fewshot 0 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},add_bos_token=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks hellaswag --num_fewshot 0 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},add_bos_token=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks piqa --num_fewshot 0 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},add_bos_token=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks gpqa_main_n_shot --num_fewshot 5 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},add_bos_token=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks winogrande --num_fewshot 5 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},add_bos_token=true"
 
     accelerate launch --num_processes ${num_gpu} dllm/pipelines/dream/eval.py \
         --tasks race --num_fewshot 0 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},mc_num=1,max_new_tokens=512,max_length=512,steps=512,temperature=0.0,top_p=0.95,add_bos_token=true,escape_until=true"
+        --model_args "pretrained=${model_name_or_path},add_bos_token=true"
 fi
