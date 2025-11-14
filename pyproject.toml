@@ -12,7 +12,7 @@ description = "dLLM: Simple Diffusion Language Modeling"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "transformers==4.57.0",
+    "transformers==4.57.1",
     "accelerate==1.11.0",
     "deepspeed==0.18.0",
     "peft==0.17.1",
