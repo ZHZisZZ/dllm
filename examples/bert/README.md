@@ -158,8 +158,8 @@ bash examples/bert/eval.sh --model_name_or_path "dllm-collection/ModernBERT-larg
 
 <!-- <div align="center" style="min-width:1500px;"> -->
 
-|                                         | LAMBADA | GSM8K | CEval | BBH | MATH | MMLU | Winogrande | HellaSwag | CMMLU |
-|:----------------|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
+|                     | LAMBADA | GSM8K | CEval | BBH | MATH | MMLU | Winogrande | HellaSwag | CMMLU |
+|:------------------------------------|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
 | [`ModernBERT-base-chat-v0`](https://huggingface.co/dllm-collection/ModernBERT-base-chat-v0)(evaluated) | 49.3 | 5.90 | 25.0 | 17.9 | 3.10 | 26.1 | 49.7 | 41.0 | 24.3 |
 | [`ModernBERT-large-chat-v0`](https://huggingface.co/dllm-collection/ModernBERT-large-chat-v0)(evaluated) | 46.3 | 17.1 | 24.6 | 25.1 | 3.80 | 33.5 | 53.1 | 45.0 | 27.5 |
 | [`Qwen1.5-0.5B`](https://huggingface.co/Qwen/Qwen1.5-0.5B)(reported & evaluated) | 48.6 | *22.0* | *50.5* | *18.3* | *3.10* | *39.2* | 55.0 | 48.2 | *46.6* |
