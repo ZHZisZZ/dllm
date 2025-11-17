@@ -110,10 +110,11 @@ def train():
         train_dataset=dataset["train"],
         eval_dataset=dataset.get("test", None),
         args=training_args,
-        data_collator=transformers.DataCollatorForSeq2Seq(
-            tokenizer,
+        data_collator=transformers.DataCollatorForLanguageModeling(
+            tokenizer=tokenizer,
+            mlm=True,
+            mlm_probability=0.15,  # Standart value TODO: Make this configurable
             return_tensors="pt",
-            padding=True,
         ),
     )
     trainer.train()
