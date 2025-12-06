@@ -244,7 +244,7 @@ bash examples/a2d/bd3lm/eval.sh --model_name_or_path "dllm-collection/Qwen3-0.6B
 
 #### Evaluation Results
 
->  Results (evaluated) are evaluated using our framework, while results (reported) come from the [Qwen3 Technical Report](https://arxiv.org/pdf/2505.09388), [Qwen2.5-Coder Technical Report](https://arxiv.org/pdf/2409.12186) and [Open-dLLM](https://github.com/pengzhangzhi/Open-dLLM?tab=readme-ov-file#-benchmarking). 
+>  Results (evaluated) are evaluated using our framework, while results (reported) come from the [Qwen3 Technical Report](https://arxiv.org/pdf/2505.09388), [Qwen2.5-Coder Technical Report](https://arxiv.org/pdf/2409.12186), [Qwen2.5 Blog](https://qwenlm.github.io/blog/qwen2.5-llm/) and [Open-dLLM](https://github.com/pengzhangzhi/Open-dLLM?tab=readme-ov-file#-benchmarking). 
 > **Bolded rows** denote diffusion language models, whereas non-bold rows refer to autoregressive models.
 
 
@@ -278,21 +278,21 @@ bash examples/a2d/bd3lm/eval.sh --model_name_or_path "dllm-collection/Qwen3-0.6B
   <!-- mdlm v0.1 -->
   <tr>
     <td style="padding: 8px;">
-      <strong><a href="https://huggingface.co/dllm-collection/Qwen3-0.6B-diffusion-mdlm-v0.1"><code>Qwen3-0.6B-diffusion-mdlm-v0.1</code></a> (evaluated)</strong>
+      <a href="https://huggingface.co/dllm-collection/Qwen3-0.6B-diffusion-mdlm-v0.1"><code>Qwen3-0.6B-diffusion-mdlm-v0.1</code></a> (evaluated)
     </td>
-    <td><strong>29.8</strong></td><td><strong>8.8</strong></td><td><strong>27.0</strong></td>
-    <td><strong>17.6</strong></td><td><strong>42.1</strong></td><td><strong>40.0</strong></td>
-    <td><strong>30.5</strong></td><td><strong>29.2</strong></td>
+    <td>29.8</td><td>8.8</td><td>27.0</td>
+    <td>17.6</td><td>42.1</td><td>40.0</td>
+    <td>30.5</td><td>29.2</td>
   </tr>
 
   <!-- bd3lm v0.1 -->
   <tr>
     <td style="padding: 8px;">
-      <strong><a href="https://huggingface.co/dllm-collection/Qwen3-0.6B-diffusion-bd3lm-v0.1"><code>Qwen3-0.6B-diffusion-bd3lm-v0.1</code></a> (evaluated)</strong>
+      <a href="https://huggingface.co/dllm-collection/Qwen3-0.6B-diffusion-bd3lm-v0.1"><code>Qwen3-0.6B-diffusion-bd3lm-v0.1</code></a> (evaluated)
     </td>
-    <td><strong>46.6</strong></td><td><strong>13.9</strong></td><td><strong>27.0</strong></td>
-    <td><strong>14.1</strong></td><td><strong>40.0</strong></td><td><strong>38.8</strong></td>
-    <td><strong>47.6</strong></td><td><strong>32.0</strong></td>
+    <td>46.6</td><td>13.9</td><td>27.0</td>
+    <td>14.1</td><td>40.0</td><td>38.8</td>
+    <td>47.6</td><td>32.0</td>
   </tr>
 
   <!-- Divider -->
@@ -301,6 +301,11 @@ bash examples/a2d/bd3lm/eval.sh --model_name_or_path "dllm-collection/Qwen3-0.6B
   </tr>
 
   <!-- AR model -->
+  <tr>
+    <td style="padding: 8px;"><a href="https://huggingface.co/Qwen/Qwen2.5-0.5B"><code>Qwen2.5-0.5B</code></a> (reported)</td>
+    <td>41.6</td><td>19.5</td><td>20.3</td><td>15.7</td><td>52.1</td><td>47.5</td><td>30.5</td><td>39.3</td>
+  </tr>
+
   <tr>
     <td style="padding: 8px;">
       <a href="https://huggingface.co/Qwen/Qwen3-0.6B"><code>Qwen3-0.6B</code></a> (reported)
@@ -326,28 +331,28 @@ bash examples/a2d/bd3lm/eval.sh --model_name_or_path "dllm-collection/Qwen3-0.6B
   <!-- mdlm v0.1  -->
   <tr>
     <td style="padding: 8px;">
-      <strong><a href="https://huggingface.co/dllm-collection/"><code>Qwen2.5-Coder-0.5B-Instruct-diffusion-mdlm-v0.1</code></a> (evaluated)</strong>
+      <a href="https://huggingface.co/dllm-collection/Qwen2.5-Coder-0.5B-Instruct-diffusion-mdlm-v0.1"><code>Qwen2.5-Coder-0.5B-Instruct-diffusion-mdlm-v0.1</code></a> (evaluated)
     </td>
-    <td><strong>28.1</strong></td>
-    <td><strong>23.0</strong></td>
+    <td>28.1</td>
+    <td>23.0</td>
   </tr>
 
   <!-- bd3lm v0.1  -->
   <tr>
     <td style="padding: 8px;">
-      <strong><a href="https://huggingface.co/dllm-collection/"><code>Qwen2.5-Coder-0.5B-Instruct-diffusion-bd3lm-v0.1</code></a> (evaluated)</strong>
+      <a href="https://huggingface.co/dllm-collection/Qwen2.5-Coder-0.5B-Instruct-diffusion-bd3lm-v0.1"><code>Qwen2.5-Coder-0.5B-Instruct-diffusion-bd3lm-v0.1</code></a> (evaluated)
     </td>
-    <td><strong>41.5</strong></td>
-    <td><strong>33.6</strong></td>
+    <td>41.5</td>
+    <td>33.6</td>
   </tr>
 
   <!-- open-dcoder (bold) -->
   <tr>
     <td style="padding: 8px;">
-      <strong><a href="https://huggingface.co/fredzzp/open-dcoder-0.5B"><code>open-dcoder-0.5B</code></a> (reported)</strong>
+      <a href="https://huggingface.co/fredzzp/open-dcoder-0.5B"><code>open-dcoder-0.5B</code></a> (reported)
     </td>
-    <td><strong>20.8</strong></td>
-    <td><strong>35.2</strong></td>
+    <td>20.8</td>
+    <td>35.2</td>
   </tr>
 
   <!-- Double-line separator -->
