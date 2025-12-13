@@ -1,1 +1,1 @@
-from . import llada, dream, bert, editflow, a2d
+from . import llada, llada2, dream, bert, editflow, a2d

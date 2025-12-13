@@ -61,6 +61,7 @@ __all__ = [
     "SwiGLU",
     "LLaDABlock",
     "LLaDASequentialBlock",
+    "LLaDAPreTrainedModel",
     "LLaDAModel",
     "LLaDAOutput",
     "LLaDAGenerateOutput",
@@ -1020,10 +1021,70 @@ class LLaDABlockGroup(nn.ModuleList):
             block.set_activation_checkpointing(strategy)
 
 
-class LLaDAModel(nn.Module):
-    def __init__(self, config: ModelConfig, init_params: bool = True):
-        super().__init__()
-        self.config = config
+class LLaDAPreTrainedModel(PreTrainedModel):
+    """
+    Minimal HF-compatible base to enable gradient checkpointing hooks and centralize
+    parameter initialization.
+    """
+
+    config_class = LLaDAConfig
+    base_model_prefix = "model"
+    _no_split_modules = ["LLaDALlamaBlock"]
+    _supports_gradient_checkpointing = True  # backward compat
+    supports_gradient_checkpointing = True   # transformers >=4.38
+
+    def __init__(self, config, *model_args, **model_kwargs):
+        hf_config = config
+        if not hasattr(hf_config, "to_dict"):
+            hf_config = LLaDAConfig(**config.__dict__)
+        super().__init__(hf_config, *model_args, **model_kwargs)
+
+    def _init_weights(self, module):
+        # Avoid double-initializing by short-circuiting once a module (and its children)
+        # have been reset.
+        if getattr(module, "_llada_params_initialized", False):
+            return
+        if hasattr(module, "reset_parameters"):
+            module.reset_parameters()
+            for child in module.modules():
+                setattr(child, "_llada_params_initialized", True)
+
+    def _set_gradient_checkpointing(
+        self, enable: bool = True, gradient_checkpointing_func: Callable = None
+    ):
+        """
+        New-format hook expected by `PreTrainedModel.gradient_checkpointing_enable`.
+        Only LLaDAModel (the heavy transformer) actually toggles checkpointing.
+        """
+        from torch.utils.checkpoint import checkpoint  # local import to avoid hard dep at import time
+
+        if gradient_checkpointing_func is None:
+            gradient_checkpointing_func = checkpoint
+
+        # When called on the HF wrapper (LLaDAModelLM), reach into the inner LLaDAModel.
+        target = self.model if isinstance(self, LLaDAModelLM) else self
+
+        if isinstance(target, LLaDAModel):
+            target._gradient_checkpointing_func = gradient_checkpointing_func
+            target.gradient_checkpointing = enable
+            strategy = ActivationCheckpointingStrategy.whole_layer if enable else None
+            target.set_activation_checkpointing(strategy)
+            return
+
+        # Fallback: walk modules to find the core model.
+        for module in self.modules():
+            if isinstance(module, LLaDAModel):
+                module._gradient_checkpointing_func = gradient_checkpointing_func
+                module.gradient_checkpointing = enable
+                strategy = ActivationCheckpointingStrategy.whole_layer if enable else None
+                module.set_activation_checkpointing(strategy)
+                break
+
+
+class LLaDAModel(LLaDAPreTrainedModel):
+    def __init__(self, config: LLaDAConfig | ModelConfig, init_params: bool = True):
+        super().__init__(config)
+        self.gradient_checkpointing: bool = False
         self.__cache = BufferCache()
 
         # Validate config.
@@ -1092,7 +1153,7 @@ class LLaDAModel(nn.Module):
             )
         # When `init_device="meta"` FSDP will call `reset_parameters()` to initialize weights.
         if init_params and self.config.init_device != "meta":
-            self.reset_parameters()
+            self.post_init()
         self.__num_fwd_flops: Optional[int] = None
 
         # Warm up cache.
@@ -1380,7 +1441,7 @@ def create_model_config_from_pretrained_config(config: LLaDAConfig):
     return model_config
 
 
-class LLaDAModelLM(PreTrainedModel):
+class LLaDAModelLM(LLaDAPreTrainedModel):
     """
     Extremely barebones HF model wrapper.
     """

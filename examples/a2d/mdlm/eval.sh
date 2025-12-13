@@ -9,6 +9,7 @@ export TORCH_NCCL_ASYNC_ERROR_HANDLING=1    # Enable async error handling for mu
 export NCCL_DEBUG=warn                      # Show NCCL warnings for better diagnosis without flooding logs
 export TORCH_DISTRIBUTED_DEBUG=DETAIL       # Provide detailed logging for PyTorch distributed debugging
 
+# ===== Basic Settings =====
 model_name_or_path="dllm-collection/Qwen3-0.6B-diffusion-mdlm-v0.1"
 num_gpu=1
 model_type="normal"   # normal | coder
@@ -29,7 +30,12 @@ done
 echo ">>> model_type: ${model_type}"
 echo ">>> model_name_or_path: ${model_name_or_path}"
 
+# ===== Common arguments =====
 common_args="--model llada --apply_chat_template"
+
+# =========================================================
+# If coder model → Only run HumanEval + MBPP
+# =========================================================
 
 if [[ "$model_type" == "coder" ]]; then
     echo ">>> Running coder-model benchmark suite (HumanEval + MBPP only)"
@@ -47,8 +53,12 @@ if [[ "$model_type" == "coder" ]]; then
     exit 0
 fi
 
+# =========================================================
+# Normal model → Run all tasks (full list)
+# =========================================================
+
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/llada/eval.py \
-    --tasks mmlu_generative --num_fewshot 0 ${common_args} \
+    --tasks mmlu_generative_dream --num_fewshot 0 ${common_args} \
     --model_args "pretrained=${model_name_or_path},max_new_tokens=3,steps=3,block_size=3,cfg=0.0"
 
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/llada/eval.py \

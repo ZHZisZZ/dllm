@@ -214,7 +214,7 @@ WANDB_MODE=online sbatch --nodes=8 --gres=gpu:8 scripts/train.slurm.sh \
 
 ### Evaluation
 
-> Read [(optional) Evaluation setup](/README.md/#optional-evaluation-setup) before running evaluation. 
+> Read [(optional) Evaluation setup](/README.md/#optional-evaluation-setup) before running evaluation. If evaluation results don’t match, verify that the `lm-eval` submodule is up to date.
 
 To evaluate [`Qwen3-0.6B-diffusion-mdlm-v0.1`](https://huggingface.co/dllm-collection/Qwen3-0.6B-diffusion-mdlm-v0.1) and [`Qwen3-0.6B-diffusion-bd3lm-v0.1`](https://huggingface.co/dllm-collection/Qwen3-0.6B-diffusion-bd3lm-v0.1) on [`gsm8k`](https://huggingface.co/datasets/openai/gsm8k) using 4 GPUs, run:
 ```shell
@@ -305,7 +305,7 @@ bash examples/a2d/bd3lm/eval.sh --model_name_or_path "dllm-collection/Qwen3-0.6B
 
   <tr>
     <td style="padding: 8px;"><i>
-      <a href="https://huggingface.co/Qwen/Qwen3-0.6B"><code>Qwen3-0.6B</code></a> (reported)
+      <a href="https://huggingface.co/Qwen/Qwen3-0.6B-Base"><code>Qwen3-0.6B-Base</code></a> (reported)
     </i></td>
     <td><i>59.6</i></td><td><i>32.4</i></td><td><i>41.5</i></td>
     <td><i>24.7</i></td><td><i>47.4</i></td><td><i>52.8</i></td>
@@ -376,6 +376,3 @@ Table 1. Results (evaluated) are obtained using our framework, while results (re
 <a href="https://github.com/pengzhangzhi/Open-dLLM?tab=readme-ov-file#-benchmarking" style="color: #808080; text-decoration: none;">Open-dLLM</a>. 
 <i>Italic rows</i> denote autoregressive models, whereas non-italic rows denote diffusion language models.
 </p>
-
-
-

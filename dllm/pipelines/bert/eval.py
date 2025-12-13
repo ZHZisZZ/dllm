@@ -326,6 +326,7 @@ class BERTEvalHarness(LM):
         sampler = MDLMSampler(model=self.model, tokenizer=self.tokenizer)
 
         for elem in tqdm(ds, desc="Generating..."):
+            # Remove the [CLS][SEP] token due to apply_chat_template(tokenize=True) in lm-eval's dataflow
             prompt = [elem["question"][1:-1].to(self.device)]
             stop_tokens = elem["until"]
             generated_ids = sampler.sample(
