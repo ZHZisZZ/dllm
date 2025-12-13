@@ -121,7 +121,9 @@ def post_process_dataset(
 
 
 def clip_row_streaming(row: dict, max_length: int, truncation: str = "right") -> dict:
-    """Clip whole sequence OR (if prompt_len present) preserve prompt and clip only the response."""
+    """
+    Clip whole sequence OR (if prompt_len present) preserve prompt and clip only the response.
+    """
     if truncation not in {"right", "left"}:
         raise NotImplementedError(f"Unknown truncation: {truncation}")
 
@@ -164,7 +166,9 @@ def post_process_dataset_streaming(
     """
 
     def _train_has_prompt_len_streaming(dataset: datasets.IterableDatasetDict) -> bool:
-        """Replicates: 'if \"prompt_len\" in dataset.column_names[\"train\"]' for streaming."""
+        """
+        Replicates: 'if "prompt_len" in dataset.column_names["train"]' for streaming.
+        """
         it = dataset["train"].take(1)
         try:
             ex = next(iter(it))

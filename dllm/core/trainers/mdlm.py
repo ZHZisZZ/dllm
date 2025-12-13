@@ -72,7 +72,9 @@ class MDLMTrainer(transformers.Trainer):
         *args,
         **kwargs,
     ) -> torch.Tensor:
-        """Compute loss weights given timestep t and other arguments."""
+        """
+        Compute loss weights given timestep t and other arguments.
+        """
         b, l = inputs["input_ids"].shape
         if self.loss_weight_type == "scheduler":
             loss_weights = self.scheduler.weight(t).unsqueeze(1).repeat(1, l)  # b, 1

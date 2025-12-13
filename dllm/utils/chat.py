@@ -19,7 +19,9 @@ SUB = "-" * L
 
 
 def banner_line(text: str, width: int = L, fill: str = "=") -> str:
-    """Return a centered banner line with given width and fill."""
+    """
+    Return a centered banner line with given width and fill.
+    """
     text = f" {text.strip()} "
     fill_len = width - len(text)
     if fill_len <= 0:
@@ -30,13 +32,17 @@ def banner_line(text: str, width: int = L, fill: str = "=") -> str:
 
 
 def print_wrapped(text: str, width: int = L):
-    """Print text with automatic line wrapping."""
+    """
+    Print text with automatic line wrapping.
+    """
     wrapped = textwrap.fill(text, width=width)
     print(wrapped)
 
 
 def boxed(text: str, width: int = L, padding: int = 1):
-    """Render a centered box with the given text and width."""
+    """
+    Render a centered box with the given text and width.
+    """
     lines = text.splitlines()
     content_width = max(len(line) for line in lines)
     box_width = min(width, content_width + padding * 2 + 2)
@@ -57,7 +63,9 @@ def boxed(text: str, width: int = L, padding: int = 1):
 
 
 def render_menu(round_idx: int):
-    """Render a boxed menu of possible actions."""
+    """
+    Render a boxed menu of possible actions.
+    """
     if round_idx == 0:
         text = (
             "Possible next actions:\n"
@@ -88,7 +96,9 @@ def prompt_choice() -> Literal["1", "2", "3"]:
 
 
 def build_chat_inputs(tokenizer, messages: List[dict], add_generation_prompt: bool):
-    """Tokenize chat messages into inputs tensor."""
+    """
+    Tokenize chat messages into inputs tensor.
+    """
     return tokenizer.apply_chat_template(
         messages,
         add_generation_prompt=add_generation_prompt,

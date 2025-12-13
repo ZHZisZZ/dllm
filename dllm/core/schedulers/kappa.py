@@ -117,7 +117,9 @@ class CosineKappaScheduler(BaseKappaScheduler):
 
 
 def get_kappa_scheduler_class(name: str) -> type[BaseKappaScheduler]:
-    """Return the scheduler class by name (case-insensitive)."""
+    """
+    Return the scheduler class by name (case-insensitive).
+    """
     cls = BaseKappaScheduler.__registry__.get(
         name
     ) or BaseKappaScheduler.__registry__.get(name.lower())
@@ -128,7 +130,9 @@ def get_kappa_scheduler_class(name: str) -> type[BaseKappaScheduler]:
 
 
 def make_kappa_scheduler(name: str, **kwargs: Any) -> BaseKappaScheduler:
-    """Instantiate a scheduler by name with optional kwargs."""
+    """
+    Instantiate a scheduler by name with optional kwargs.
+    """
     cls = get_kappa_scheduler_class(name)
     return cls(**kwargs)
 

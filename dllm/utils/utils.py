@@ -214,7 +214,9 @@ def parse_spec(spec: str):
     """
 
     def _parse_kv_string(s: str) -> dict:
-        """Parse comma-separated key=value pairs, e.g. 'a=1,b=2'."""
+        """
+        Parse comma-separated key=value pairs, e.g. 'a=1,b=2'.
+        """
         return dict(part.split("=", 1) for part in s.split(",") if "=" in part)
 
     s = spec.strip()

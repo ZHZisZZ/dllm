@@ -120,7 +120,9 @@ class CosineAlphaScheduler(BaseAlphaScheduler):
 
 
 def get_alpha_scheduler_class(name: str) -> type[BaseAlphaScheduler]:
-    """Return the scheduler class by name (case-insensitive)."""
+    """
+    Return the scheduler class by name (case-insensitive).
+    """
     cls = BaseAlphaScheduler.__registry__.get(
         name
     ) or BaseAlphaScheduler.__registry__.get(name.lower())
@@ -131,7 +133,9 @@ def get_alpha_scheduler_class(name: str) -> type[BaseAlphaScheduler]:
 
 
 def make_alpha_scheduler(name: str, **kwargs: Any) -> BaseAlphaScheduler:
-    """Instantiate a scheduler by name with optional kwargs."""
+    """
+    Instantiate a scheduler by name with optional kwargs.
+    """
     cls = get_alpha_scheduler_class(name)
     return cls(**kwargs)
 

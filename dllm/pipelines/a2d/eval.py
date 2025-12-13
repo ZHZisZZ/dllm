@@ -30,7 +30,9 @@ from dllm.pipelines.llada.eval import LLaDAEvalConfig, LLaDAEvalHarness
 
 @dataclass
 class MDLMEvalConfig(LLaDAEvalConfig):
-    """Alias config for A2D MDLM eval (inherits LLaDA settings)."""
+    """
+    Alias config for A2D MDLM eval (inherits LLaDA settings).
+    """
 
 
 @register_model("mdlm")
