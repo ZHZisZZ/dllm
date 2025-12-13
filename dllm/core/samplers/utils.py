@@ -9,6 +9,20 @@ def get_num_transfer_tokens(
     scheduler: BaseAlphaScheduler,
     stochastic: bool = False,
 ) -> torch.Tensor:
+    """Compute the number of tokens to unmask at each diffusion step.
+
+    For each sample, determines how many masked tokens should be revealed
+    per step based on the reverse diffusion schedule.
+
+    Args:
+        mask_index: Boolean tensor [B, L] indicating masked positions.
+        steps: Number of diffusion steps.
+        scheduler: Alpha scheduler defining the masking schedule.
+        stochastic: If True, use binomial sampling; if False, use deterministic rounding.
+
+    Returns:
+        Integer tensor [B, steps] with number of tokens to unmask per step.
+    """
     mask_num = mask_index.sum(dim=1, keepdim=True)
     num_transfer_tokens = torch.zeros(
         mask_num.size(0), steps, device=mask_index.device, dtype=torch.int64

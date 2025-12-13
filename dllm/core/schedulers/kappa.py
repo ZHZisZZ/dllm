@@ -12,6 +12,12 @@ Number = Union[float, torch.Tensor]
 # ---------------- Registry-enabled Base ---------------- #
 @dataclasses.dataclass
 class BaseKappaScheduler:
+    """Base class for kappa schedulers in diffusion language models.
+
+    Kappa schedulers define the noise schedule κ(t) as a function of diffusion time t ∈ [0,1].
+    Subclasses are automatically registered and can be instantiated by name.
+    """
+
     __registry__: ClassVar[dict[str, type[BaseKappaScheduler]]] = {}
 
     def __init_subclass__(cls, **kwargs):
