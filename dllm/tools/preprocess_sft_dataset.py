@@ -22,7 +22,7 @@ import dllm
 
 @dataclass
 class ScriptArguments:
-    """Preprocess SFT dataset"""
+    """Preprocess SFT dataset."""
 
     model_name_or_path: str = "GSAI-ML/LLaDA-8B-Base"
     sft_map_fn_path: str = "dllm.utils.default_mdlm_sft_map_fn"

@@ -2,7 +2,8 @@ from datasets import DatasetDict, load_dataset
 
 
 def _build_alpaca_prompt(instruction: str, input_text: str | None) -> str:
-    """Construct a clean text prompt from Alpaca fields.
+    """
+    Construct a clean text prompt from Alpaca fields.
 
     We intentionally *do not* include Anthropic-style role tags (e.g., "Human:", "Assistant:")
     in the returned prompt, to mirror the return shape of `load_hh_rlhf_dataset` which removes
@@ -19,7 +20,8 @@ def _build_alpaca_prompt(instruction: str, input_text: str | None) -> str:
 
 
 def load_dataset_alpaca(dataset_name_or_path: str) -> DatasetDict:
-    """Load the Alpaca dataset (tatsu-lab/alpaca) and expose unified fields.
+    """
+    Load the Alpaca dataset (tatsu-lab/alpaca) and expose unified fields.
 
     Returns a `DatasetDict` where each split contains:
       - prompt:   Combined instruction (+ optional input), with clean formatting

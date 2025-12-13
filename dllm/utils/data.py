@@ -21,6 +21,24 @@ def tokenize_and_group(
     drop_tail: bool = True,
     add_special_tokens: bool = False,
 ):
+    """
+    Tokenize text examples and group into fixed-length sequences.
+
+    Concatenates all tokenized text and splits into chunks of seq_length.
+    Optionally drops incomplete trailing chunks.
+
+    Args:
+        examples: Batch of examples with text field.
+        tokenizer: Tokenizer to use.
+        text_field: Name of the text field in examples.
+        seq_length: Target sequence length for chunks.
+        insert_eos: If True, append EOS token to each text sample.
+        drop_tail: If True, drop incomplete final chunk; if False, keep it.
+        add_special_tokens: Whether to add special tokens during tokenization.
+
+    Returns:
+        Dictionary with input_ids and labels as lists of token sequences.
+    """
     # 1) Tokenize (batched input)
     tokenized = tokenizer(examples[text_field], add_special_tokens=add_special_tokens)
     ids = tokenized["input_ids"]
@@ -69,6 +87,16 @@ def clip_row(row: dict, max_length: int, truncation: str = "right") -> dict:
 def post_process_dataset(
     dataset: datasets.DatasetDict, data_args: "DataArguments"
 ) -> datasets.DatasetDict:
+    """
+    Post-process dataset by filtering or truncating sequences.
+
+    Args:
+        dataset: Dataset dictionary to process.
+        data_args: Data arguments with max_length and truncation settings.
+
+    Returns:
+        Processed dataset dictionary.
+    """
     if data_args.truncation == "filter":
         return dataset.filter(
             lambda row: len(row["input_ids"]) <= data_args.max_length,
@@ -122,9 +150,21 @@ def post_process_dataset_streaming(
     dataset: datasets.IterableDatasetDict,
     data_args: "DataArguments",
 ) -> datasets.IterableDatasetDict:
+    """
+    Post-process streaming dataset by filtering or truncating sequences.
+
+    Similar to post_process_dataset but for streaming datasets.
+
+    Args:
+        dataset: Streaming dataset dictionary to process.
+        data_args: Data arguments with max_length and truncation settings.
+
+    Returns:
+        Processed streaming dataset dictionary.
+    """
 
     def _train_has_prompt_len_streaming(dataset: datasets.IterableDatasetDict) -> bool:
-        """Replicates: 'if \"prompt_len\" in dataset.column_names[\"train\"]' for streaming."""
+        """Replicates: 'if "prompt_len" in dataset.column_names["train"]' for streaming."""
         it = dataset["train"].take(1)
         try:
             ex = next(iter(it))

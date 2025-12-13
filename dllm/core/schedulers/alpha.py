@@ -12,6 +12,25 @@ Number = Union[float, torch.Tensor]
 # ---------------- Registry-enabled Base ---------------- #
 @dataclasses.dataclass
 class BaseAlphaScheduler:
+    """
+    Base class for alpha schedulers in diffusion language models.
+
+    Alpha schedulers define the masking rate α(t) as a function of diffusion time t ∈ [0,1].
+    Subclasses are automatically registered and can be instantiated by name.
+
+    To implement a custom scheduler, inherit from this class and implement:
+    - _alpha(t): Compute α(t) for a tensor of timesteps
+    - _alpha_derivative(t): Compute dα/dt for a tensor of timesteps
+
+    Example:
+        @dataclasses.dataclass
+        class CustomScheduler(BaseAlphaScheduler):
+            def _alpha(self, t):
+                return 1 - t**2
+            def _alpha_derivative(self, t):
+                return -2 * t
+    """
+
     __registry__: ClassVar[dict[str, type[BaseAlphaScheduler]]] = {}
 
     def __init_subclass__(cls, **kwargs):

@@ -105,6 +105,20 @@ class MDLMTrainer(transformers.Trainer):
         return_outputs: bool = False,
         **kwargs,
     ):
+        """
+        Compute the masked diffusion language modeling loss.
+
+        Applies stochastic masking to input tokens based on a diffusion timestep,
+        then computes the weighted cross-entropy loss for predicting the original tokens.
+
+        Args:
+            model: The language model to train.
+            inputs: Dictionary containing input_ids, labels, and optionally attention_mask.
+            return_outputs: If True, return both loss and model outputs.
+
+        Returns:
+            Loss tensor, or tuple of (loss, outputs) if return_outputs is True.
+        """
         assert self.processing_class.padding_side == "right"
         inputs = self._preprocess_inputs(inputs)
         input_ids, labels, attention_mask = (

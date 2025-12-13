@@ -16,7 +16,7 @@ import dllm
 
 @dataclass
 class ScriptArguments:
-    """Preprocess PT dataset"""
+    """Preprocess PT dataset."""
 
     model_name_or_path: str = "answerdotai/ModernBERT-large"
     dataset_args: str = "OpenCoder-LLM/opc-annealing-corpus[lang:python]"  # required
