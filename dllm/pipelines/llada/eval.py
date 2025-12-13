@@ -174,9 +174,9 @@ class LLaDAEvalHarness(LM):
     def _forward_process(
         self, batch: torch.Tensor, prompt_index: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        b, seq_len = batch.shape
+        b, l = batch.shape
 
-        target_len = (seq_len - prompt_index.sum()).item()
+        target_len = (l - prompt_index.sum()).item()
         k = torch.randint(1, target_len + 1, (), device=batch.device)
 
         x = torch.round(
@@ -205,7 +205,7 @@ class LLaDAEvalHarness(LM):
 
         noisy_batch = torch.where(is_mask, self.mask_id, batch)
 
-        return noisy_batch, (x / target_len).unsqueeze(1).repeat(1, seq_len)
+        return noisy_batch, (x / target_len).unsqueeze(1).repeat(1, l)
 
     @torch.no_grad()
     def get_logits(

@@ -264,7 +264,7 @@ class DreamEvalHarness(LM):
     def _forward_process(
         self, batch: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        b, seq_len = batch.shape
+        b, l = batch.shape
         # sample from U[0, 1] following https://arxiv.org/pdf/2107.00630 I.1
         u0 = torch.rand(1, device=batch.device, dtype=torch.float32)
         indices = torch.arange(b, device=batch.device).float()
@@ -272,9 +272,9 @@ class DreamEvalHarness(LM):
 
         p_mask = (1 - self.sampling_eps) * t + self.sampling_eps
 
-        p_mask = p_mask[:, None].repeat(1, seq_len)
+        p_mask = p_mask[:, None].repeat(1, l)
 
-        mask_indices = torch.rand((b, seq_len), device=batch.device) < p_mask
+        mask_indices = torch.rand((b, l), device=batch.device) < p_mask
         # always unmask bos and eos
         mask_indices[:, 0] = False
         mask_indices[:, -1] = False

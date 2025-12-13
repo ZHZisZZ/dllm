@@ -132,7 +132,7 @@ class BD3LMTrainer(MDLMTrainer):
             inputs["labels"],
             inputs.get("attention_mask", None),
         )
-        b, seq_len = input_ids.shape
+        b, l = input_ids.shape
 
         # === 1. Sample diffusion timesteps ===
         # Each example draws a random timestep t ∈ [ε, 1), where ε avoids degenerate values near 0.
@@ -141,14 +141,14 @@ class BD3LMTrainer(MDLMTrainer):
             b, device=input_ids.device
         )  # [b]
         alpha_t = self.scheduler(t)  # [b]
-        p_mask = 1.0 - alpha_t.unsqueeze(1).expand(b, seq_len)  # [b, seq_len]
+        p_mask = 1.0 - alpha_t.unsqueeze(1).expand(b, l)  # [b, l]
 
         # === 2. Apply stochastic masking ===
         # Tokens are masked independently according to p_mask(t).
         # Positions with label = -100 are excluded (ignored in loss).
-        masked_indices = (
-            torch.rand((b, seq_len), device=input_ids.device) < p_mask
-        ) & (labels != -100)
+        masked_indices = (torch.rand((b, l), device=input_ids.device) < p_mask) & (
+            labels != -100
+        )
         # Replace masked tokens with the special [MASK] token.
         noised_input_ids = torch.where(
             masked_indices, self.processing_class.mask_token_id, input_ids
@@ -157,7 +157,7 @@ class BD3LMTrainer(MDLMTrainer):
         # === 3. Forward pass through the model (block-diffusion) ===
         # We follow the paper and feed x_t ⊕ x_0 with a specialized block mask.
 
-        # concat_input_ids: [b, 2*seq_len], first seq_len are noisy (x_t), last seq_len are clean (x_0)
+        # concat_input_ids: [b, 2l], first l are noisy (x_t), last l are clean (x_0)
         concat_input_ids = torch.cat([noised_input_ids, input_ids], dim=1)
 
         # [TODO]: others like flash attention 2
@@ -165,15 +165,13 @@ class BD3LMTrainer(MDLMTrainer):
             attention_mask = block_diff_mask(
                 b=None,
                 h=None,
-                q_idx=torch.arange(seq_len * 2)[:, None],
-                kv_idx=torch.arange(seq_len * 2)[None, :],
+                q_idx=torch.arange(l * 2)[:, None],
+                kv_idx=torch.arange(l * 2)[None, :],
                 block_size=self.block_size,
-                n=seq_len,
+                n=l,
             )
             attention_mask = (
-                attention_mask.unsqueeze(0)
-                .unsqueeze(0)
-                .expand(1, 1, 2 * seq_len, 2 * seq_len)
+                attention_mask.unsqueeze(0).unsqueeze(0).expand(1, 1, 2 * l, 2 * l)
             )
             attention_mask = attention_mask.to(input_ids.device)
         elif (
@@ -183,19 +181,17 @@ class BD3LMTrainer(MDLMTrainer):
             from torch.nn.attention.flex_attention import create_block_mask
 
             attention_mask = create_block_mask(
-                partial(block_diff_mask, block_size=self.block_size, n=seq_len),
+                partial(block_diff_mask, block_size=self.block_size, n=l),
                 B=None,
                 H=None,
-                Q_LEN=seq_len * 2,
-                KV_LEN=seq_len * 2,
+                Q_LEN=l * 2,
+                KV_LEN=l * 2,
             )
         else:
             raise NotImplementedError
 
         base_pos = (
-            torch.arange(seq_len, device=input_ids.device)
-            .unsqueeze(0)
-            .expand(b, seq_len)
+            torch.arange(l, device=input_ids.device).unsqueeze(0).expand(b, l)
         )  # [B, L]
         concat_position_ids = torch.cat([base_pos, base_pos], dim=1)  # [B, 2L]
 
@@ -207,9 +203,7 @@ class BD3LMTrainer(MDLMTrainer):
         outputs = self._postprocess_outputs(outputs)
         logits = outputs.logits
 
-        logits = logits[
-            :, :seq_len
-        ]  # we only care about the first half for computing loss
+        logits = logits[:, :l]  # we only care about the first half for computing loss
 
         # === 4. Handle degenerate cases (no tokens masked) ===
         # If no positions were masked, return a zero loss to keep gradients valid.
@@ -237,9 +231,7 @@ class BD3LMTrainer(MDLMTrainer):
         # === 7. Normalize loss per effective token length ===
         # Normalize each sequence’s contribution by its number of valid tokens,
         # then average over the batch for stability across variable-length inputs.
-        effective_lengths = torch.sum(labels != -100, dim=1, keepdim=True).expand(
-            b, seq_len
-        )
+        effective_lengths = torch.sum(labels != -100, dim=1, keepdim=True).expand(b, l)
         loss = torch.sum(token_loss / effective_lengths[masked_indices]) / b
 
         # === 8. Return final loss (and optionally model outputs) ===
