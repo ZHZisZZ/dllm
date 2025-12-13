@@ -18,31 +18,6 @@ from dllm.utils.collators import CollatorWrapper
 
 from .mdlm import MDLMTrainer
 
-# @dataclass
-# class BD3LMSFTCollator(transformers.DataCollatorForSeq2Seq):
-#     block_size: int = 32
-
-#     def __call__(self, features, return_tensors=None):
-#         # ---------- Step 1: Pad each example to the nearest multiple of block_size ----------
-#         # Pad input_ids and labels so that each sequence length becomes
-#         # the smallest multiple of block_size that is >= the original length.
-#         for ex in features:
-#             ids = ex["input_ids"]
-#             labs = ex["labels"]
-
-#             assert isinstance(ids, list) and isinstance(labs, list)
-
-#             L = len(ids)
-#             target = (L + self.block_size - 1) // self.block_size * self.block_size
-#             pad_len = target - L
-#             if pad_len > 0:
-#                 ex["input_ids"] = ids + [self.tokenizer.eos_token_id] * pad_len
-#                 ex["labels"] = labs + [self.tokenizer.eos_token_id] * pad_len
-
-#         # ---------- Step 2: Use the parent Seq2Seq collator for batch-level padding ----------
-#         batch = super().__call__(features, return_tensors=return_tensors)
-#         return batch
-
 
 @dataclass
 class AppendEOSBlockWrapper(CollatorWrapper):

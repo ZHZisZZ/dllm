@@ -20,9 +20,6 @@ from dllm.utils.data import prepend_bos
 
 
 class MDLMTrainer(transformers.Trainer):
-    """
-    Masked Diffusion Language Model Trainer.
-    """
 
     def __init__(
         self,
