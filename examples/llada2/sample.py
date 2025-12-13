@@ -13,7 +13,7 @@ import dllm
 class ScriptArguments:
     model_name_or_path: str = "inclusionAI/LLaDA2.0-mini"
     seed: int = 42
-    visualize: bool = False
+    visualize: bool = True
 
     def __post_init__(self):
         self.model_name_or_path = dllm.utils.resolve_with_base_env(

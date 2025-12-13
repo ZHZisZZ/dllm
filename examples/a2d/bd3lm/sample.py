@@ -22,7 +22,7 @@ class ScriptArguments:
 
 
 @dataclass
-class SamplerConfig(dllm.core.samplers.MDLMSamplerConfig):
+class SamplerConfig(dllm.core.samplers.BD3LMSamplerConfig):
     steps: int = 128
     max_new_tokens: int = 128
     block_size: int = 32
