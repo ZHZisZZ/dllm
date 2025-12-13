@@ -32,9 +32,7 @@ def even_transfer_schedule(block_size: int, steps_per_block: int) -> torch.Tenso
 def top_k_top_p(
     logits: torch.Tensor, top_k: Optional[int], top_p: Optional[float]
 ) -> torch.Tensor:
-    """
-    Filter logits with top-k / top-p; returns filtered logits.
-    """
+    """Filter logits with top-k / top-p; returns filtered logits."""
     if top_k is not None and top_k > 0:
         top_k = min(top_k, logits.size(-1))
         values, _ = torch.topk(logits, top_k)

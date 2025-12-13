@@ -21,9 +21,7 @@ class X0Sampler:
 
 @dataclass
 class SampleX0Empty(X0Sampler):
-    """
-    Return BOS-only (i.e., empty tail).
-    """
+    """Return BOS-only (i.e., empty tail)."""
 
     def __call__(self, *args, **kwargs) -> list[int]:
         return []
@@ -31,9 +29,7 @@ class SampleX0Empty(X0Sampler):
 
 @dataclass
 class SampleX0Masks(X0Sampler):
-    """
-    Return a run of mask tokens of given length.
-    """
+    """Return a run of mask tokens of given length."""
 
     length: int = 128
     tokenizer: transformers.PreTrainedTokenizer = None

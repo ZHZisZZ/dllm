@@ -47,9 +47,7 @@ class LLaDAEvalConfig(MDLMSamplerConfig):
 class LLaDAEvalHarness(LM):
     @staticmethod
     def _parse_token_list(value):
-        """
-        Parse token list from string format like '[126081;126348]' or list.
-        """
+        """Parse token list from string format like '[126081;126348]' or list."""
         if isinstance(value, str):
             value = value.strip()
             if value.startswith("[") and value.endswith("]"):
