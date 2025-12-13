@@ -15,7 +15,20 @@ class BaseKappaScheduler:
     """Base class for kappa schedulers in diffusion language models.
 
     Kappa schedulers define the noise schedule κ(t) as a function of diffusion time t ∈ [0,1].
-    Subclasses are automatically registered and can be instantiated by name.
+    Unlike alpha schedulers (which control masking rates), kappa controls the interpolation
+    between source and target in edit flow models. Subclasses are automatically registered.
+
+    To implement a custom scheduler, inherit from this class and implement:
+    - _kappa(t): Compute κ(t) for a tensor of timesteps
+    - _kappa_derivative(t): Compute dκ/dt for a tensor of timesteps
+
+    Example:
+        @dataclasses.dataclass
+        class CustomKappaScheduler(BaseKappaScheduler):
+            def _kappa(self, t):
+                return t**3
+            def _kappa_derivative(self, t):
+                return 3 * t**2
     """
 
     __registry__: ClassVar[dict[str, type[BaseKappaScheduler]]] = {}

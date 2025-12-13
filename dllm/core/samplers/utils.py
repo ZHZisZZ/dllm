@@ -18,7 +18,8 @@ def get_num_transfer_tokens(
         mask_index: Boolean tensor [B, L] indicating masked positions.
         steps: Number of diffusion steps.
         scheduler: Alpha scheduler defining the masking schedule.
-        stochastic: If True, use binomial sampling; if False, use deterministic rounding.
+        stochastic: If True, sample from a binomial distribution (probabilistic);
+            if False, use deterministic rounding of the expected number of tokens.
 
     Returns:
         Integer tensor [B, steps] with number of tokens to unmask per step.
