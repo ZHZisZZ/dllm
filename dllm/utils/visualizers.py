@@ -1,15 +1,15 @@
 from __future__ import annotations
+
 import os
 import re
 import sys
 import time
-from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from typing import Sequence, Optional
+from dataclasses import dataclass
+from typing import Optional, Sequence
 
 import torch
 from tqdm import tqdm
-
 from transformers import PreTrainedTokenizer
 
 
@@ -127,18 +127,18 @@ class TerminalVisualizer(BaseVisualizer):
         # --------- imports & env checks ----------
         try:
             from rich.console import Console
+            from rich.layout import Layout
             from rich.live import Live
-            from rich.text import Text
             from rich.panel import Panel
             from rich.progress import (
-                Progress,
                 BarColumn,
+                MofNCompleteColumn,
+                Progress,
+                SpinnerColumn,
                 TextColumn,
                 TimeRemainingColumn,
-                MofNCompleteColumn,
-                SpinnerColumn,
             )
-            from rich.layout import Layout
+            from rich.text import Text
 
             _RICH_IMPORTED = True
         except Exception:
@@ -176,8 +176,8 @@ class TerminalVisualizer(BaseVisualizer):
         final_text = self._truncate(final_text, max_chars)
 
         # ------------------ new: estimate height from final_text ------------------
-        import textwrap
         import shutil
+        import textwrap
 
         def strip_ansi(s: str) -> str:
             return self.ansi_escape.sub("", s) if s else ""

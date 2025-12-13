@@ -10,19 +10,19 @@ accelerate launch \
 """
 
 import logging
-from types import SimpleNamespace
 from dataclasses import dataclass
+from types import SimpleNamespace
 
 import accelerate
 import torch
 import torch.nn.functional as F
 from datasets import Dataset
-from tqdm import tqdm
 from lm_eval.__main__ import cli_evaluate
 from lm_eval.api.instance import Instance
 from lm_eval.api.model import LM
 from lm_eval.api.registry import register_model
 from lm_eval.models.utils import get_dtype
+from tqdm import tqdm
 
 import dllm
 from dllm.pipelines.dream import DreamSampler, DreamSamplerConfig

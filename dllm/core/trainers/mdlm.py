@@ -8,11 +8,12 @@ Large Language Diffusion Models:
 https://arxiv.org/abs/2502.09992
 """
 
+from typing import Any
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import transformers
-from typing import Any
 
 from dllm.core.schedulers import BaseAlphaScheduler, LinearAlphaScheduler
 from dllm.utils.data import prepend_bos

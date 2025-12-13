@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 import transformers
 
-from dllm.utils.utils import resolve_with_base_env, get_default_logger
+from dllm.utils.utils import get_default_logger, resolve_with_base_env
 
 logger = get_default_logger(__name__)
 

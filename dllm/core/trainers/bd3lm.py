@@ -5,18 +5,18 @@ Block Diffusion: Interpolating Between Autoregressive and Diffusion Language Mod
 https://arxiv.org/abs/2503.09573
 """
 
-from functools import partial
 from dataclasses import dataclass
+from functools import partial
+from typing import Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import transformers
-from typing import Any
 
-from .mdlm import MDLMTrainer
 from dllm.utils.collators import CollatorWrapper
 
+from .mdlm import MDLMTrainer
 
 # @dataclass
 # class BD3LMSFTCollator(transformers.DataCollatorForSeq2Seq):

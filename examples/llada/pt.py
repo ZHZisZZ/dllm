@@ -6,14 +6,14 @@ Local users
         --config_file scripts/accelerate_configs/ddp.yaml --num_processes 1 \
         examples/llada/pt.py \
         --load_in_4bit True --lora True
-    
+
 - 8 GPUs (FSDP):
     accelerate launch \
         --config_file scripts/accelerate_configs/fsdp.yaml \
         examples/llada/pt.py
 
 Slurm users
-# Note: run `mkdir logs` before running sbatch; and adjust 
+# Note: run `mkdir logs` before running sbatch; and adjust
 #       `partition` and `quotatype` in `scripts/train.slurm.sh` for your cluster.
 ------------
 - 24 Nodes, 192 GPUs (FSDP):
@@ -22,13 +22,13 @@ Slurm users
         --script_path "examples/llada/pt.py"
 """
 
-import os
 import functools
+import os
 from dataclasses import dataclass, field
 
+import accelerate
 import torch
 import transformers
-import accelerate
 
 import dllm
 

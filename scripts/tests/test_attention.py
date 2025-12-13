@@ -38,10 +38,11 @@ This script checks:
 import gc
 from typing import Dict, List
 
+import pytest
 import torch
 import transformers
+
 import dllm
-import pytest
 
 # Numerical tolerance
 ERROR_THRESHOLD = 1e-3

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import torch
-from transformers import PreTrainedTokenizer, PreTrainedModel
+from transformers import PreTrainedModel, PreTrainedTokenizer
 
 from dllm.core.schedulers import BaseAlphaScheduler, LinearAlphaScheduler
 

@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 import transformers
 
-
 # def top_p_logits(logits, top_p=None):
 #     sorted_logits, sorted_indices = torch.sort(logits, descending=True)
 #     cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)

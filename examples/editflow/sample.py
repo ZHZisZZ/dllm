@@ -18,12 +18,11 @@ import math
 from dataclasses import dataclass
 from typing import Annotated
 
-import tyro
 import torch
+import tyro
 from transformers import AutoModel, AutoTokenizer, PreTrainedModel, PreTrainedTokenizer
 
 from dllm.core.schedulers import BaseKappaScheduler, LinearKappaScheduler
-
 
 # ------------------------------- Small utilities --------------------------------
 

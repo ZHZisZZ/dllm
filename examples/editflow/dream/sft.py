@@ -6,14 +6,14 @@ Local users
         --config_file scripts/accelerate_configs/ddp.yaml --num_processes 1 \
         examples/editflow/dream/sft.py \
         --lora True
-    
+
 - 8 GPUs (FSDP):
     accelerate launch \
         --config_file scripts/accelerate_configs/zero2.yaml \
         examples/editflow/dream/sft.py
 
 Slurm users
-# Note: run `mkdir logs` before running sbatch; and adjust 
+# Note: run `mkdir logs` before running sbatch; and adjust
 #       `partition` and `quotatype` in `scripts/train.slurm.sh` for your cluster.
 ------------
 - 1 Node, 8 GPUs (FSDP):

@@ -1,9 +1,8 @@
 from dataclasses import dataclass
+from typing import Any
 
 import torch
 import transformers
-
-from typing import Any
 
 
 @dataclass

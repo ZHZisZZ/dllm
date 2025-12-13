@@ -9,6 +9,7 @@ python -u examples/bert/chat.py --model_name_or_path "YOUR_MODEL_PATH"
 
 import sys
 from dataclasses import dataclass
+
 import transformers
 
 import dllm

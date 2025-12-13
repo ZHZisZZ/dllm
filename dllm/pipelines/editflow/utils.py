@@ -1,9 +1,9 @@
 import math
 import random
-from dataclasses import dataclass
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Tuple, Text
 from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Text, Tuple
 
 import torch
 import transformers

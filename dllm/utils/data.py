@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import TYPE_CHECKING
 
-import torch
 import datasets
+import torch
 import transformers
 
 if TYPE_CHECKING:
-    from dllm.utils.configs import ModelArguments, DataArguments, TrainingArguments
+    from dllm.utils.configs import DataArguments, ModelArguments, TrainingArguments
 
 
 def tokenize_and_group(

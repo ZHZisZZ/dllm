@@ -9,12 +9,8 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 
-from dllm.core.samplers.base import (
-    SamplerOutput,
-    SamplerConfig,
-    BaseSampler,
-)
-from dllm.core.samplers.utils import get_num_transfer_tokens, add_gumbel_noise
+from dllm.core.samplers.base import BaseSampler, SamplerConfig, SamplerOutput
+from dllm.core.samplers.utils import add_gumbel_noise, get_num_transfer_tokens
 
 
 def build_staircase_attention_mask(

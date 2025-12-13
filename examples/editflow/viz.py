@@ -1,11 +1,11 @@
 # ------------------------------ Visualization (NEW) ------------------------------
 # Diffusion-style consecutive output: only show the CURRENT output per frame.
 # ------------------ Visualization (sanitized, masks stripped) ------------------
-from PIL import Image, ImageDraw, ImageFont
-
 import re
 import unicodedata
-from typing import Optional, List, Tuple, Annotated
+from typing import Annotated, List, Optional, Tuple
+
+from PIL import Image, ImageDraw, ImageFont
 
 
 def render_consecutive_trace_gif(
@@ -36,8 +36,9 @@ def render_consecutive_trace_gif(
       - Substitution mask→nonmask -> stays BLACK (no extra color).
     Adds a final clean frame (5s) with no events box.
     """
-    from PIL import Image, ImageDraw, ImageFont
     import unicodedata
+
+    from PIL import Image, ImageDraw, ImageFont
 
     # ---------- font ----------
     try:
