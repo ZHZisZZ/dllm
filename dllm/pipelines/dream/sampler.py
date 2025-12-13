@@ -5,16 +5,12 @@ reference: https://huggingface.co/Dream-org/Dream-v0-Base-7B/blob/main/generatio
 from dataclasses import dataclass
 
 import torch
-import torch.nn.functional as F
 import torch.distributions as dists
+import torch.nn.functional as F
 
-from dllm.pipelines.dream.models.generation_utils import top_p_logits, top_k_logits
-from dllm.core.samplers.base import (
-    SamplerOutput,
-    SamplerConfig,
-    BaseSampler,
-)
+from dllm.core.samplers.base import BaseSampler, SamplerConfig, SamplerOutput
 from dllm.core.samplers.utils import get_num_transfer_tokens
+from dllm.pipelines.dream.models.generation_utils import top_k_logits, top_p_logits
 
 
 def sample_tokens(

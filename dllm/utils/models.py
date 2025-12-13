@@ -1,10 +1,10 @@
-import torch
 import accelerate
+import torch
 import transformers
 from peft import prepare_model_for_kbit_training
 
-from dllm.utils.utils import disable_caching_allocator_warmup, print_main, load_peft
 from dllm.utils.configs import ModelArguments, TrainingArguments
+from dllm.utils.utils import disable_caching_allocator_warmup, load_peft, print_main
 
 
 def get_model(
@@ -83,20 +83,21 @@ def get_tokenizer(model_args) -> transformers.PreTrainedTokenizer:
         transformers.PreTrainedTokenizer
     """
     # Lazy imports to avoid circular dependencies
-    from dllm.pipelines.llada.models.modeling_llada import LLaDAModelLM
-    from dllm.pipelines.llada.models.modeling_lladamoe import LLaDAMoEModelLM
-    from dllm.pipelines.llada2.models.modeling_llada2_moe import LLaDA2MoeModelLM
-    from dllm.pipelines.dream.models.modeling_dream import DreamModel
+    from transformers import (
+        BertPreTrainedModel,
+        ModernBertPreTrainedModel,
+        RobertaPreTrainedModel,
+    )
+
     from dllm.pipelines.a2d import (
         A2DLlamaLMHeadModel,
         A2DQwen2LMHeadModel,
         A2DQwen3LMHeadModel,
     )
-    from transformers import (
-        BertPreTrainedModel,
-        RobertaPreTrainedModel,
-        ModernBertPreTrainedModel,
-    )
+    from dllm.pipelines.dream.models.modeling_dream import DreamModel
+    from dllm.pipelines.llada2.models.modeling_llada2_moe import LLaDA2MoeModelLM
+    from dllm.pipelines.llada.models.modeling_llada import LLaDAModelLM
+    from dllm.pipelines.llada.models.modeling_lladamoe import LLaDAMoEModelLM
 
     model_name_or_path = getattr(model_args, "model_name_or_path")
 

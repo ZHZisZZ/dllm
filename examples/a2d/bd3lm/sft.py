@@ -30,8 +30,8 @@ import os
 from dataclasses import dataclass, field
 from functools import partial
 
-import transformers
 import accelerate
+import transformers
 
 import dllm
 

@@ -8,11 +8,12 @@ Large Language Diffusion Models:
 https://arxiv.org/abs/2502.09992
 """
 
+from typing import Any
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import transformers
-from typing import Any
 
 from dllm.core.schedulers import BaseAlphaScheduler, LinearAlphaScheduler
 from dllm.utils.data import prepend_bos
@@ -75,9 +76,11 @@ class MDLMTrainer(transformers.Trainer):
         **kwargs,
     ) -> torch.Tensor:
         """Compute loss weights given timestep t and other arguments."""
-        b, l = inputs["input_ids"].shape
+        b, seq_len = inputs["input_ids"].shape
         if self.loss_weight_type == "scheduler":
-            loss_weights = self.scheduler.weight(t).unsqueeze(1).repeat(1, l)  # b, 1
+            loss_weights = (
+                self.scheduler.weight(t).unsqueeze(1).repeat(1, seq_len)
+            )  # b, 1
         elif self.loss_weight_type == "ones":
             loss_weights = torch.ones_like(inputs["input_ids"])
         else:
@@ -114,7 +117,7 @@ class MDLMTrainer(transformers.Trainer):
             inputs["labels"],
             inputs.get("attention_mask", None),
         )
-        b, l = input_ids.shape
+        b, seq_len = input_ids.shape
 
         # === 1. Sample diffusion timesteps ===
         # Each example draws a random timestep t ∈ [ε, 1), where ε avoids degenerate values near 0.
@@ -122,14 +125,14 @@ class MDLMTrainer(transformers.Trainer):
         t = self.time_epsilon + (1 - self.time_epsilon) * torch.rand(
             b, device=input_ids.device
         )
-        p_mask = 1 - self.scheduler(t).unsqueeze(1).expand(b, l)
+        p_mask = 1 - self.scheduler(t).unsqueeze(1).expand(b, seq_len)
 
         # === 2. Apply stochastic masking ===
         # Tokens are masked independently according to p_mask(t).
         # Positions with label = -100 are excluded (ignored in loss).
-        masked_indices = (torch.rand((b, l), device=input_ids.device) < p_mask) & (
-            labels != -100
-        )
+        masked_indices = (
+            torch.rand((b, seq_len), device=input_ids.device) < p_mask
+        ) & (labels != -100)
         # Replace masked tokens with the special [MASK] token.
         noised_input_ids = torch.where(
             masked_indices, self.processing_class.mask_token_id, input_ids
@@ -167,7 +170,9 @@ class MDLMTrainer(transformers.Trainer):
         # === 7. Normalize loss per effective token length ===
         # Normalize each sequence’s contribution by its number of valid tokens,
         # then average over the batch for stability across variable-length inputs.
-        effective_lengths = torch.sum(labels != -100, dim=1, keepdim=True).expand(b, l)
+        effective_lengths = torch.sum(labels != -100, dim=1, keepdim=True).expand(
+            b, seq_len
+        )
         loss = torch.sum(token_loss / effective_lengths[masked_indices]) / b
 
         # === 8. Return final loss (and optionally model outputs) ===

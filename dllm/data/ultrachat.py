@@ -1,5 +1,4 @@
-from typing import Optional, List, Dict
-from datasets import load_dataset, DatasetDict
+from datasets import DatasetDict, load_dataset
 
 
 def _extract_first_turn(messages: list[dict[str, str]]) -> dict[str, str] | None:

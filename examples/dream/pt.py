@@ -22,13 +22,13 @@ Slurm users
         --script_path "examples/dream/pt.py"
 """
 
-import os
 import functools
+import os
 from dataclasses import dataclass, field
 
+import accelerate
 import torch
 import transformers
-import accelerate
 
 import dllm
 from dllm.pipelines import dream

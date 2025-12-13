@@ -1,5 +1,4 @@
-from typing import Optional
-from datasets import load_dataset, DatasetDict
+from datasets import DatasetDict, load_dataset
 
 
 def _build_alpaca_prompt(instruction: str, input_text: str | None) -> str:
