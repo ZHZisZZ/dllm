@@ -57,6 +57,12 @@ class CollatorWrapper:
 
 @dataclass
 class NoAttentionMaskWrapper(CollatorWrapper):
+    """Collator wrapper that removes attention_mask from outputs.
+
+    Useful when the model doesn't need explicit attention masks or when
+    all sequences are of equal length.
+    """
+
     def after(self, outputs):
         outputs.pop("attention_mask", None)
         return outputs
@@ -64,6 +70,16 @@ class NoAttentionMaskWrapper(CollatorWrapper):
 
 @dataclass
 class PrependBOSWrapper(CollatorWrapper):
+    """Collator wrapper that prepends BOS token to sequences.
+
+    Prepends the beginning-of-sequence token to input_ids, and correspondingly
+    prepends an ignored label (-100) to labels and a 1 to attention_mask.
+
+    Attributes:
+        bos_token_id: The BOS token ID to prepend.
+        label_pad_token_id: Token ID to use for ignored labels (default: -100).
+    """
+
     bos_token_id: int | None = None
     label_pad_token_id: int = -100
 
@@ -111,6 +127,15 @@ class PrependBOSWrapper(CollatorWrapper):
 
 @dataclass
 class RandomTruncateWrapper(CollatorWrapper):
+    """Collator wrapper that randomly truncates sequences during training.
+
+    With probability random_length_ratio, truncates all sequences in the batch
+    to a random length. Also removes attention_mask if it's all ones (no padding).
+
+    Attributes:
+        random_length_ratio: Probability of applying random truncation (default: 0.01).
+    """
+
     random_length_ratio: float = 0.01
 
     def after(self, outputs):
