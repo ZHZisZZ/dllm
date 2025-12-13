@@ -100,7 +100,8 @@ class BD3LMTrainer(MDLMTrainer):
         return_outputs: bool = False,
         **kwargs,
     ):
-        """Compute the block diffusion language modeling loss.
+        """
+        Compute the block diffusion language modeling loss.
 
         Applies block-wise diffusion with specialized attention masks where the model
         attends to both noised blocks (x_t) and clean context blocks (x_0).

@@ -40,7 +40,8 @@ class MDLMSampler(BaseSampler):
         config: MDLMSamplerConfig | None = None,
         **kwargs,
     ) -> SamplerOutput | torch.Tensor:
-        """Generate text using masked diffusion language modeling.
+        """
+        Generate text using masked diffusion language modeling.
 
         Iteratively unmasks tokens over multiple diffusion steps, starting from
         fully masked sequences appended to the input prompts.

@@ -161,7 +161,8 @@ class BD3LMSampler(BaseSampler):
         config: BD3LMSamplerConfig | None = None,
         **kwargs,
     ) -> SamplerOutput | torch.Tensor:
-        """Generate text using block diffusion language modeling.
+        """
+        Generate text using block diffusion language modeling.
 
         Generates text block-by-block with a staircase attention pattern, where each
         block undergoes multiple diffusion steps before moving to the next block.

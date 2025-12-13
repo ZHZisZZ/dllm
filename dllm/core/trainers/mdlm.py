@@ -105,7 +105,8 @@ class MDLMTrainer(transformers.Trainer):
         return_outputs: bool = False,
         **kwargs,
     ):
-        """Compute the masked diffusion language modeling loss.
+        """
+        Compute the masked diffusion language modeling loss.
 
         Applies stochastic masking to input tokens based on a diffusion timestep,
         then computes the weighted cross-entropy loss for predicting the original tokens.

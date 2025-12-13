@@ -21,7 +21,8 @@ def tokenize_and_group(
     drop_tail: bool = True,
     add_special_tokens: bool = False,
 ):
-    """Tokenize text examples and group into fixed-length sequences.
+    """
+    Tokenize text examples and group into fixed-length sequences.
 
     Concatenates all tokenized text and splits into chunks of seq_length.
     Optionally drops incomplete trailing chunks.
@@ -86,7 +87,8 @@ def clip_row(row: dict, max_length: int, truncation: str = "right") -> dict:
 def post_process_dataset(
     dataset: datasets.DatasetDict, data_args: "DataArguments"
 ) -> datasets.DatasetDict:
-    """Post-process dataset by filtering or truncating sequences.
+    """
+    Post-process dataset by filtering or truncating sequences.
 
     Args:
         dataset: Dataset dictionary to process.
@@ -148,7 +150,8 @@ def post_process_dataset_streaming(
     dataset: datasets.IterableDatasetDict,
     data_args: "DataArguments",
 ) -> datasets.IterableDatasetDict:
-    """Post-process streaming dataset by filtering or truncating sequences.
+    """
+    Post-process streaming dataset by filtering or truncating sequences.
 
     Similar to post_process_dataset but for streaming datasets.
 

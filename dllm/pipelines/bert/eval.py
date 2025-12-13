@@ -149,7 +149,8 @@ class BERTEvalHarness(LM):
     def _forward_process(
         self, batch: torch.Tensor, prompt_index: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Apply forward diffusion process by masking a random subset of tokens.
+        """
+        Apply forward diffusion process by masking a random subset of tokens.
 
         Args:
             batch: Token tensor [B, L].

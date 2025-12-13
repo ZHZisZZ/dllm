@@ -12,7 +12,8 @@ Number = Union[float, torch.Tensor]
 # ---------------- Registry-enabled Base ---------------- #
 @dataclasses.dataclass
 class BaseAlphaScheduler:
-    """Base class for alpha schedulers in diffusion language models.
+    """
+    Base class for alpha schedulers in diffusion language models.
 
     Alpha schedulers define the masking rate α(t) as a function of diffusion time t ∈ [0,1].
     Subclasses are automatically registered and can be instantiated by name.

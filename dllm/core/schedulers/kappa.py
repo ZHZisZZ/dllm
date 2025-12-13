@@ -12,7 +12,8 @@ Number = Union[float, torch.Tensor]
 # ---------------- Registry-enabled Base ---------------- #
 @dataclasses.dataclass
 class BaseKappaScheduler:
-    """Base class for kappa schedulers in diffusion language models.
+    """
+    Base class for kappa schedulers in diffusion language models.
 
     Kappa schedulers define the noise schedule κ(t) as a function of diffusion time t ∈ [0,1].
     Unlike alpha schedulers (which control masking rates), kappa controls the interpolation

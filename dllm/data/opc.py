@@ -64,7 +64,8 @@ def load_dataset_opc_annealing(
     lang: str | None = None,
     streaming: bool = True,
 ) -> DatasetDict:
-    """Load OpenCoder OPC annealing dataset(s).
+    """
+    Load OpenCoder OPC annealing dataset(s).
 
     Args:
         dataset_name_or_path: Path or name of the dataset.
