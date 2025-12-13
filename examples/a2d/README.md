@@ -218,7 +218,7 @@ WANDB_MODE=online sbatch --nodes=8 --gres=gpu:8 scripts/train.slurm.sh \
 
 To evaluate [`Qwen3-0.6B-diffusion-mdlm-v0.1`](https://huggingface.co/dllm-collection/Qwen3-0.6B-diffusion-mdlm-v0.1) and [`Qwen3-0.6B-diffusion-bd3lm-v0.1`](https://huggingface.co/dllm-collection/Qwen3-0.6B-diffusion-bd3lm-v0.1) on [`gsm8k`](https://huggingface.co/datasets/openai/gsm8k) using 4 GPUs, run:
 ```shell
-# Use model_args to adjust the sampler arguments for evalution.
+# Use model_args to adjust the sampler arguments for evaluation.
 accelerate launch --num_processes 4 \
     dllm/pipelines/a2d/eval.py \
     --tasks "gsm8k_cot" \

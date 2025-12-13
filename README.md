@@ -214,7 +214,7 @@ See [Features](#features) for specific training recipes.
 `--accelerate_config "ddp,zero-{1,2,3},fsdp"`
 - Load pretraining dataset in streaming mode:
 `--streaming True`
-- Preprocesss SFT dataset before training (e.g., LLaDA):
+- Preprocess SFT dataset before training (e.g., LLaDA):
   ```shell
   # Preprocess SFT data
   python dllm/tools/preprocess_sft_dataset.py \

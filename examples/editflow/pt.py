@@ -109,7 +109,7 @@ def train(
     with dllm.utils.init_device_context_manager():
         model = transformers.AutoModel.from_config(ef_cfg)
         if model_args.init_editflow_from_src:
-            # Load src model config & weights (bf16 on CUDA) for intializing EditFlow model
+            # Load src model config & weights (bf16 on CUDA) for initializing EditFlow model
             src_model = transformers.AutoModelForMaskedLM.from_pretrained(
                 model_args.model_name_or_path, dtype=model_args.dtype
             )
