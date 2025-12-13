@@ -13,7 +13,7 @@ Local users
         examples/dream/pt.py
 
 Slurm users
-# Note: run `mkdir logs` before running sbatch; and adjust 
+# Note: run `mkdir logs` before running sbatch; and adjust
 #       `partition` and `quotatype` in `scripts/train.slurm.sh` for your cluster.
 ------------
 - 24 Nodes, 192 GPUs (FSDP):

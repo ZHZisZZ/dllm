@@ -57,7 +57,7 @@ def get_model(
         model = transformers.AutoModelForMaskedLM.from_pretrained(
             model_name_or_path, **params
         )
-    except:
+    except Exception:
         model = transformers.AutoModel.from_pretrained(model_name_or_path, **params)
 
     # --- if quantized, prepare for LoRA / QLoRA training ---
@@ -107,7 +107,7 @@ def get_tokenizer(model_args) -> transformers.PreTrainedTokenizer:
         padding_side="right",
     )
 
-    assert tokenizer.eos_token != None or tokenizer.pad_token != None
+    assert tokenizer.eos_token is not None or tokenizer.pad_token is not None
 
     if not tokenizer.pad_token:
         tokenizer.pad_token = tokenizer.eos_token
