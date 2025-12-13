@@ -13,7 +13,7 @@ Resources and examples for training (finetuning & pretraining) and evaluating di
 
 <!-- ## Setup
 > [!IMPORTANT]  
-> **Slurm users:** Update `scripts/train.slurm.sh` and `mkdir logps`: see [(optional) Slurm setup](/README.md/#optional-slurm-setup) for details.
+> **Slurm users:** Update `scripts/train.slurm.sh` and `mkdir logs`: see [(optional) Slurm setup](/README.md/#optional-slurm-setup) for details.
 > -->
 
 
@@ -138,7 +138,7 @@ python examples/dream/chat.py --model_name_or_path "Dream-org/Dream-v0-Instruct-
 
 For example, to evaluate [`Dream-v0-Instruct-7B`](https://huggingface.co/Dream-org/Dream-v0-Instruct-7B) on [`gsm8k`](https://huggingface.co/datasets/openai/gsm8k) using 4 GPUs, run:
 ```shell
-# Use model_args to adjust the sampler arguments for evalution.
+# Use model_args to adjust the sampler arguments for evaluation.
 accelerate launch --num_processes 4 \
     dllm/pipelines/dream/eval.py \
     --tasks "gsm8k_cot" \

@@ -13,7 +13,7 @@ Resources and examples for training (finetuning & pretraining) and evaluating di
 
 <!-- ## Setup
 > [!IMPORTANT]  
-> **Slurm users:** Update `scripts/train.slurm.sh` and `mkdir logps`: see [(optional) Slurm setup](/README.md/#optional-slurm-setup) for details.
+> **Slurm users:** Update `scripts/train.slurm.sh` and `mkdir logs`: see [(optional) Slurm setup](/README.md/#optional-slurm-setup) for details.
 >
 > **MoE checkpoints:** For models like [`LLaDA-MoE-7B-A1B-Base`](https://huggingface.co/inclusionAI/LLaDA-MoE-7B-A1B-Base), set `"model_type"` to `"lladamoe"` in the checkpoint’s `config.json`:
 > ```diff
@@ -159,7 +159,7 @@ python examples/llada/chat.py --model_name_or_path "GSAI-ML/LLaDA-8B-Instruct"
 
 For example, to evaluate [LLaDA-8B-Instruct](https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct) on [gsm8k](https://huggingface.co/datasets/openai/gsm8k) using 4 GPUs, run:
 ```shell
-# Use model_args to adjust the sampling arguments for evalution.
+# Use model_args to adjust the sampling arguments for evaluation.
 accelerate launch --num_processes 4 \
     dllm/pipelines/llada/eval.py \
     --tasks "gsm8k_cot" \

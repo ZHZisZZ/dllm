@@ -20,7 +20,7 @@ This directory provides an educational reference for training EditFlow models. I
 
 ## Setup
 > [!IMPORTANT]  
-> **Slurm users:** Update `scripts/train.slurm.sh` and `mkdir logps`: see [(optional) Slurm setup](/README.md/#optional-slurm-setup) for details.
+> **Slurm users:** Update `scripts/train.slurm.sh` and `mkdir logs`: see [(optional) Slurm setup](/README.md/#optional-slurm-setup) for details.
 
 ##  Files overview
 ```

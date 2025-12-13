@@ -939,7 +939,7 @@ class LLaDAMoEModel(LLaDAMoEPreTrainedModel):
         return_dict: Optional[bool] = None,
         cache_position: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple, MoeModelOutputWithPast]:
-        assert (not use_cache and past_key_values is None and cache_position is None), "The cache mechanism is not suppotred for LLaDA MoE by default."
+        assert (not use_cache and past_key_values is None and cache_position is None), "The cache mechanism is not supported for LLaDA MoE by default."
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_router_logits = (

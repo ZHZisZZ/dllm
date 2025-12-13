@@ -141,7 +141,7 @@ python -u examples/bert/chat.py --model_name_or_path "dllm-collection/ModernBERT
 
 For example, to evaluate [`ModernBERT-large-chat-v0.1`](https://huggingface.co/dllm-collection/ModernBERT-large-chat-v0.1) on [`gsm8k`](https://huggingface.co/datasets/openai/gsm8k) using 4 GPUs, run:
 ```shell
-# Use model_args to adjust the sampler arguments for evalution.
+# Use model_args to adjust the sampler arguments for evaluation.
 accelerate launch --num_processes 4 \
     dllm/pipelines/bert/eval.py \
     --tasks "gsm8k_bert" \
