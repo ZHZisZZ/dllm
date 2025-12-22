@@ -790,7 +790,7 @@ class DreamModel(DreamGenerationMixin, DreamPreTrainedModel):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if isinstance(attention_mask, str) and attention_mask == "full" or attention_mask == None:
+        if isinstance(attention_mask, str) and attention_mask == "full" or attention_mask is None:
             # whether attention_mask is full
             pass
 

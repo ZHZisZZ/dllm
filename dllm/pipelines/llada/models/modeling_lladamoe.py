@@ -873,7 +873,7 @@ LLADAMOE_INPUTS_DOCSTRING = r"""
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
         use_cache (`bool`, *optional*):
-            For diffusion languagem model, the use_cache and past_key_values can not be enabled for default setting.
+            For diffusion language model, the use_cache and past_key_values can not be enabled for default setting.
         output_attentions (`bool`, *optional*):
             Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
             tensors for more detail.
