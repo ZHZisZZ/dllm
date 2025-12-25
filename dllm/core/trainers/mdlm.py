@@ -25,7 +25,8 @@ class MDLMTrainer(transformers.Trainer):
         self,
         scheduler: BaseAlphaScheduler | None = None,
         time_epsilon: float = 1e-3,
-        loss_weight_type: str = "scheduler",  # "ones"
+        loss_weight_type: str = "scheduler",  # "scheduler", "uniform"
+        loss_normalization_type: str = "sequence",  # "batch", "sequence", "token"
         right_shift_logits: bool = False,
         *args,
         **kwargs,
@@ -38,6 +39,7 @@ class MDLMTrainer(transformers.Trainer):
         self.scheduler = scheduler or LinearAlphaScheduler()
         self.time_epsilon = time_epsilon
         self.loss_weight_type = loss_weight_type
+        self.loss_normalization_type = loss_normalization_type
         self.right_shift_logits = right_shift_logits
 
     def _preprocess_inputs(self, inputs):
@@ -75,8 +77,8 @@ class MDLMTrainer(transformers.Trainer):
         """Compute loss weights given timestep t and other arguments."""
         b, l = inputs["input_ids"].shape
         if self.loss_weight_type == "scheduler":
-            loss_weights = self.scheduler.weight(t).unsqueeze(1).repeat(1, l)  # b, 1
-        elif self.loss_weight_type == "ones":
+            loss_weights = self.scheduler.weight(t).unsqueeze(1).repeat(1, l)
+        elif self.loss_weight_type == "uniform":
             loss_weights = torch.ones_like(inputs["input_ids"])
         else:
             raise NotImplementedError
@@ -176,11 +178,17 @@ class MDLMTrainer(transformers.Trainer):
         )
         token_loss = token_loss * loss_weights[masked_indices]
 
-        # === 7. Normalize loss per effective token length ===
-        # Normalize each sequence’s contribution by its number of valid tokens,
-        # then average over the batch for stability across variable-length inputs.
-        effective_lengths = torch.sum(labels != -100, dim=1, keepdim=True).expand(b, l)
-        loss = torch.sum(token_loss / effective_lengths[masked_indices]) / b
+        # === 7. Normalize loss ===
+        valid_label_counts = torch.sum(labels != -100, dim=1, keepdim=True)  # [b, 1]
+        if self.loss_normalization_type == "batch":
+            token_loss /= b
+        elif self.loss_normalization_type == "sequence":
+            token_loss /= valid_label_counts.expand(-1, l)[masked_indices] * b
+        elif self.loss_normalization_type == "token":
+            token_loss /= torch.sum(valid_label_counts)
+        else:
+            raise ValueError("Invalid loss_normalization_type.")
+        loss = token_loss.sum()
 
         # === 8. Return final loss (and optionally model outputs) ===
         return (loss, outputs) if return_outputs else loss

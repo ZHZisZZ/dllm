@@ -217,11 +217,17 @@ class BD3LMTrainer(MDLMTrainer):
         )
         token_loss = token_loss * loss_weights[masked_indices]
 
-        # === 7. Normalize loss per effective token length ===
-        # Normalize each sequence’s contribution by its number of valid tokens,
-        # then average over the batch for stability across variable-length inputs.
-        effective_lengths = torch.sum(labels != -100, dim=1, keepdim=True).expand(b, l)
-        loss = torch.sum(token_loss / effective_lengths[masked_indices]) / b
+        # === 7. Normalize loss ===
+        valid_label_counts = torch.sum(labels != -100, dim=1, keepdim=True)  # [b, 1]
+        if self.loss_normalization_type == "batch":
+            token_loss /= b
+        elif self.loss_normalization_type == "sequence":
+            token_loss /= valid_label_counts.expand(-1, l)[masked_indices] * b
+        elif self.loss_normalization_type == "token":
+            token_loss /= torch.sum(valid_label_counts)
+        else:
+            raise ValueError("Invalid loss_normalization_type.")
+        loss = token_loss.sum()
 
         # === 8. Return final loss (and optionally model outputs) ===
         return (loss, outputs) if return_outputs else loss
