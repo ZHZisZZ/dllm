@@ -17,6 +17,7 @@ import transformers
 from dllm.utils.collators import CollatorWrapper
 
 from .mdlm import MDLMTrainer
+from .utils import EpochPPLMeter
 
 
 @dataclass
@@ -93,6 +94,9 @@ class BD3LMTrainer(MDLMTrainer):
         super().__init__(*args, **kwargs)
         self.block_size = block_size
 
+        self.epoch_meter = EpochPPLMeter(self, train_prefix="train", eval_prefix="eval")
+        self.add_callback(self.epoch_meter)
+
     def compute_loss(
         self,
         model: transformers.PreTrainedModel | nn.Module,
@@ -122,6 +126,7 @@ class BD3LMTrainer(MDLMTrainer):
             inputs.get("attention_mask", None),
         )
         b, l = input_ids.shape
+        token_cnt_per_seq = torch.sum(labels != -100, dim=1, keepdim=True)  # [b, 1]
 
         # === 1. Sample diffusion timesteps ===
         # Each example draws a random timestep t ∈ [ε, 1), where ε avoids degenerate values near 0.
@@ -129,8 +134,7 @@ class BD3LMTrainer(MDLMTrainer):
         t = self.time_epsilon + (1 - self.time_epsilon) * torch.rand(
             b, device=input_ids.device
         )  # [b]
-        alpha_t = self.scheduler(t)  # [b]
-        p_mask = 1.0 - alpha_t.unsqueeze(1).expand(b, l)  # [b, l]
+        p_mask = 1.0 - self.scheduler(t).unsqueeze(1).expand(b, l)  # [b, l]
 
         # === 2. Apply stochastic masking ===
         # Tokens are masked independently according to p_mask(t).
@@ -198,6 +202,11 @@ class BD3LMTrainer(MDLMTrainer):
         # If no positions were masked, return a zero loss to keep gradients valid.
         # This step is necessary for Deepspeed Zero-{2,3}
         if not masked_indices.any():
+            self.epoch_meter.update(
+                split="train" if model.training else "eval", 
+                nll_sum=logits.sum() * 0.0, 
+                token_cnt=token_cnt_per_seq.sum(),
+            )
             return (
                 (logits.sum() * 0.0, outputs) if return_outputs else logits.sum() * 0.0
             )
@@ -218,16 +227,20 @@ class BD3LMTrainer(MDLMTrainer):
         token_loss = token_loss * loss_weights[masked_indices]
 
         # === 7. Normalize loss ===
-        token_cnt = torch.sum(labels != -100, dim=1, keepdim=True)  # [b, 1]
         if self.loss_normalization_type == "batch":
-            token_loss /= b
+            token_loss_normalized = token_loss /  b
         elif self.loss_normalization_type == "sequence":
-            token_loss /= token_cnt.expand(-1, l)[masked_indices] * b
+            token_loss_normalized = token_loss / token_cnt_per_seq.expand(-1, l)[masked_indices] / b
         elif self.loss_normalization_type == "token":
-            token_loss /= torch.sum(token_cnt)
+            token_loss_normalized = token_loss / token_cnt_per_seq.sum()
         else:
             raise ValueError("Invalid loss_normalization_type.")
-        loss = token_loss.sum()
+        loss = token_loss_normalized.sum()
 
         # === 8. Return final loss (and optionally model outputs) ===
+        self.epoch_meter.update(
+            split="train" if model.training else "eval", 
+            nll_sum=token_loss.sum(), 
+            token_cnt=token_cnt_per_seq.sum(),
+        ) # `nll_sum / token_cnt` is equivalent to `loss` when `self.loss_normalization_type == "token"``
         return (loss, outputs) if return_outputs else loss
