@@ -201,9 +201,10 @@ class BD3LMSampler(BaseSampler):
         mask_id = self.tokenizer.mask_token_id
         bos_id = self.tokenizer.bos_token_id
         pad_id = self.tokenizer.pad_token_id  # used as padding here
+        eos_id = self.tokenizer.eos_token_id
 
         # ---- normalize inputs to tensors ----
-        # If right_shift_logits is true and a sequence has length 0, replace that sequence with [eos].
+        # If right_shift_logits is true and a sequence has length 0, replace that sequence with [bos].
         if right_shift_logits:
             inputs = [
                 [bos_id] if isinstance(p, list) and len(p) == 0 else p for p in inputs
@@ -228,16 +229,19 @@ class BD3LMSampler(BaseSampler):
 
         # ==========================================================
         # 1) Initialize with prompt only (left padded with pad_id)
+        #    pad prefix length to a multiple of block_size
         # ==========================================================
+        padded_prompt_len = ((max_prompt_len + block_size - 1) // block_size) * block_size
+
         x = torch.full(
-            (B, max_prompt_len),
+            (B, padded_prompt_len),
             pad_id,
             dtype=torch.long,
             device=self.model.device,
         )
         for b, p in enumerate(inputs):
             L = prompt_lens[b]
-            offset = max_prompt_len - L  # left padding
+            offset = padded_prompt_len - L  # left padding
             x[b, offset : offset + L] = p
 
         # Tokens considered "given" for unconditional branch in CFG.
@@ -247,6 +251,9 @@ class BD3LMSampler(BaseSampler):
                 x, torch.as_tensor(cfg_keep_tokens, device=self.model.device)
             )
             unmasked_index = unmasked_index & (~keep_mask)
+
+        # track done per sequence (EOS)
+        done = torch.zeros((B,), dtype=torch.bool, device=self.model.device)
 
         # ---- block scheduling ----
         num_blocks = math.ceil(max_new_tokens / block_size)
@@ -260,15 +267,13 @@ class BD3LMSampler(BaseSampler):
         # 2) Block-by-block generation loop
         # ==========================================================
         for b_idx in range(num_blocks):
-            # Align sampling block to physical block boundaries
-            T_prefix = x.shape[1]  # current total length before appending this block
-            offset = T_prefix % block_size
-            if offset == 0:
-                block_room = block_size
-            else:
-                block_room = block_size - offset
+            if done.all():
+                break
 
-            cur_block_len = min(block_room, max_new_tokens - generated)
+            T_prefix = x.shape[1]  # current total length before appending this block
+
+            # With padded_prompt_len aligned, we always append whole blocks (except possibly final)
+            cur_block_len = min(block_size, max_new_tokens - generated)
             if cur_block_len <= 0:
                 break
 
@@ -317,6 +322,13 @@ class BD3LMSampler(BaseSampler):
             new_block = torch.full(
                 (B, cur_block_len), mask_id, dtype=torch.long, device=self.model.device
             )
+            # if done.any():
+            #     new_block = torch.where(
+            #         done.unsqueeze(1),
+            #         torch.full_like(new_block, pad_id),
+            #         new_block,
+            #     )
+
             x = torch.cat([x, new_block], dim=1)  # [B, T_prefix + cur_block_len]
 
             unmasked_index = torch.cat(
@@ -421,8 +433,10 @@ class BD3LMSampler(BaseSampler):
                 if histories is not None:
                     histories.append(x.clone())
 
-            if self.tokenizer.eos_token_id in x[:, T_prefix:T_total]:
-                break
+            # per-sequence EOS stopping (after finishing denoising the block)
+            if eos_id is not None:
+                eos_in_block = (x[:, T_prefix:T_total] == eos_id).any(dim=1)
+                done = done | eos_in_block
 
             generated += cur_block_len
 
@@ -437,7 +451,7 @@ class BD3LMSampler(BaseSampler):
     @torch.no_grad()
     def infill(
         self,
-        inputs: list[torch.Tensor, list],
+        inputs: list[torch.Tensor | list],
         config: SamplerConfig | None = None,
         **kwargs,
     ) -> SamplerOutput:
