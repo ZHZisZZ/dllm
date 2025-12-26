@@ -190,7 +190,7 @@ class MDLMTrainer(transformers.Trainer):
 
         # === 7. Normalize loss ===
         if self.loss_normalization_type == "batch":
-            token_loss_normalized = token_loss /  b
+            token_loss_normalized = token_loss / b
         elif self.loss_normalization_type == "sequence":
             token_loss_normalized = token_loss / token_cnt_per_seq.expand(-1, l)[masked_indices] / b
         elif self.loss_normalization_type == "token":

@@ -104,7 +104,7 @@ To sample from the model interactively:
 ```shell
 # Enter a prompt (e.g., "Lebron James is"),
 # or press Enter to let the model generate text from scratch.
-python -u examples/editlfow/chat.py \
+python -u examples/editflow/chat.py \
     --model_name_or_path "models/editflow/ModernBERT-large/openwebtext/checkpoint-final" \
     --chat_template False
 ```
