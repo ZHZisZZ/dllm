@@ -35,7 +35,6 @@ fsdp_config:
   fsdp_activation_checkpointing: false # Need fix from: https://github.com/huggingface/transformers/pull/36610
   fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
   fsdp_backward_prefetch: BACKWARD_POST
-  fsdp_forward_prefetch: false
   fsdp_cpu_ram_efficient_loading: true
   fsdp_forward_prefetch: true
   fsdp_offload_params: false

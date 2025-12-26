@@ -15,7 +15,6 @@ from types import SimpleNamespace
 import accelerate
 import torch
 import torch.nn.functional as F
-from datasets import Dataset
 from lm_eval.__main__ import cli_evaluate
 from lm_eval.api.instance import Instance
 from lm_eval.api.model import LM
@@ -163,26 +162,31 @@ class BD3LMEvalHarness(LM):
         return self._world_size
 
     def generate_until(self, requests: list[Instance]):
-        def _tokenize(e):
-            return {
-                "question": self.tokenizer(e["question"])["input_ids"],
-                "question_text": e["question"],
-                "until": e["until"],
-            }
+        """Generate greedily until a stopping sequence
 
-        ds = [
-            {"question": req.args[0], "until": req.args[1]["until"]} for req in requests
-        ]
-        ds = Dataset.from_list(ds)
-        ds = ds.map(_tokenize)
-        ds = ds.with_format("torch")
-
+        :param requests: list[Instance]
+            A list of Instance objects with property `args` which returns a tuple (context, gen_kwargs).
+            context: str
+                Context string
+            gen_kwargs: dict
+                A dictionary of keyword arguments to pass to the generation function e.g. top_k, until, etc.
+        :return: list[str]
+            A list of model generated continuations.
+            continuation: str
+                The generated continuation.
+        """
         out = []
         sampler = BD3LMSampler(model=self.model, tokenizer=self.tokenizer)
 
-        for elem in tqdm(ds, desc="Generating..."):
-            prompt = [elem["question"].to(self.device)]
-            stop_tokens = elem["until"]
+        for instance in tqdm(requests, desc="Generating..."):
+            context, gen_kwargs = instance.args  # type: ignore
+            prompt_ids = torch.tensor(
+                self.tokenizer(context)["input_ids"],
+                device=self.device,
+                dtype=torch.long,
+            )
+            prompt = [prompt_ids]
+            stop_tokens = gen_kwargs["until"]
             generated_ids = sampler.sample(
                 inputs=prompt,
                 steps=self.steps,
@@ -211,10 +215,10 @@ class BD3LMEvalHarness(LM):
 
         return out
 
-    def loglikelihood(self, requests):
+    def loglikelihood(self, requests: list[Instance]):
         raise NotImplementedError("loglikelihood not supported for this model")
 
-    def loglikelihood_rolling(self, requests):
+    def loglikelihood_rolling(self, requests: list[Instance]):
         raise NotImplementedError("loglikelihood_rolling not supported for this model")
 
 

@@ -6,7 +6,7 @@ accelerate launch \
     --model dream \
     --apply_chat_template \
     --num_fewshot 0 \
-    --model_args "pretrained=Dream-org/Dream-v0-Instruct-7B,max_new_tokens=256,steps=256,temperature=0.1,top_p=0.9,alg=entropy,dtype=bfloat16,add_bos_token=False,escape_until=False"
+    --model_args "pretrained=Dream-org/Dream-v0-Instruct-7B,max_new_tokens=256,steps=256,temperature=0.1,top_p=0.9,alg=entropy,dtype=bfloat16"
 """
 
 import logging
@@ -16,7 +16,6 @@ from types import SimpleNamespace
 import accelerate
 import torch
 import torch.nn.functional as F
-from datasets import Dataset
 from lm_eval.__main__ import cli_evaluate
 from lm_eval.api.instance import Instance
 from lm_eval.api.model import LM
@@ -184,6 +183,19 @@ class DreamEvalHarness(LM):
     def generate_until(
         self, requests: list[Instance], disable_tqdm: bool = False
     ) -> list[str]:
+        """Generate greedily until a stopping sequence
+
+        :param requests: list[Instance]
+            A list of Instance objects with property `args` which returns a tuple (context, gen_kwargs).
+            context: str
+                Context string
+            gen_kwargs: dict
+                A dictionary of keyword arguments to pass to the generation function e.g. top_k, until, etc.
+        :return: list[str]
+            A list of model generated continuations.
+            continuation: str
+                The generated continuation.
+        """
         res = []
         pbar = tqdm(
             total=len(requests),
@@ -193,7 +205,7 @@ class DreamEvalHarness(LM):
         sampler = DreamSampler(model=self.model, tokenizer=self.tokenizer)
         for batch_idx in range(0, len(requests), self.batch_size):
             batch_requests = requests[batch_idx : batch_idx + self.batch_size]
-            contexts, gen_args = zip(*[req.arguments for req in batch_requests])
+            contexts, gen_args = zip(*[req.args for req in batch_requests])
 
             # ====== BEGIN merged _generate_batch logic ======
             prompts = list(contexts)
@@ -204,7 +216,7 @@ class DreamEvalHarness(LM):
             prompt_ids = [
                 self.tokenizer(
                     p, return_tensors="pt", padding=False
-                ).input_ids.squeeze()
+                ).input_ids.squeeze().to(self.device)
                 for p in prompts
             ]
             prompt_lens = [len(p_id) for p_id in prompt_ids]
@@ -252,7 +264,7 @@ class DreamEvalHarness(LM):
             # handle "until" truncation
             if not self.escape_until:
                 for i, r in enumerate(responses):
-                    for s in gen_args[0]["until"]:
+                    for s in gen_args[i]["until"]:
                         r = r.split(s)[0]
                     responses[i] = r
 
@@ -455,7 +467,11 @@ class DreamEvalHarness(LM):
 
     def _encode_pair(
         self, context: str, continuation: str
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[list[int], list[int]]:
+        """
+        Move trailing spaces in the context to the beginning of the continuation
+        and encode both pieces into token ids.
+        """
         if self.add_bos_token:
             context = self.tokenizer.bos_token + context
 
@@ -483,32 +499,43 @@ class DreamEvalHarness(LM):
                 context_enc = context_enc[-context_remain:]
             else:
                 eval_logger.warning(f"All context (prompt) is truncated.")
-                context_enc = ""
+                context_enc = []
                 continuation_enc = whole_enc[-self.max_length :]
         return context_enc, continuation_enc
 
     def loglikelihood(self, requests: list[Instance]) -> list[tuple[float, bool]]:
-        def _tokenize(e):
-            prefix, target = self._encode_pair(e["prefix"], e["target"])
-            return {
-                "prefix_text": e["prefix"],
-                "target_text": e["target"],
-                "prefix": prefix,
-                "target": target,
-            }
+        """Compute log-likelihood of generating a continuation from a context.
+        Downstream tasks should attempt to use loglikelihood instead of other
+        LM calls whenever possible.
 
-        ds = []
-        ds = [{"prefix": req.args[0], "target": req.args[1]} for req in requests]
-        ds = Dataset.from_list(ds)
-        ds = ds.map(_tokenize)
-        ds = ds.with_format("torch")
+        :param requests: list[Instance]
+            A list of Instance objects, with property `args` which returns a tuple (context, continuation).
+            `context: str`
+                Context string. Implementations of LM must be able to handle an
+                empty context string.
+            `continuation: str`
+                The continuation over which log likelihood will be calculated. If
+                there is a word boundary, the space should be in the continuation.
+                For example, context="hello" continuation=" world" is correct.
 
+        :return: list[tuple[float, bool]]
+            A list of pairs (logprob, isgreedy)
+            `logprob: float`
+                The log probability of `continuation`.
+            `isgreedy`:
+                Whether `continuation` would be generated by greedy sampling from `context`.
+        """
         out = []
         with torch.no_grad():
-            for elem in tqdm(ds, desc="Computing likelihood..."):
-                prefix = elem["prefix"]
-                target = elem["target"]
-                # likelihood calculations are modified from https://github.com/ML-GSAI/SMDM/blob/main/evaluate_diff.py
+            for instance in tqdm(requests, desc="Computing likelihood..."):
+                prefix_ids, target_ids = self._encode_pair(*instance.args)
+                assert len(prefix_ids) + len(target_ids) <= self.max_length, (
+                    f"Context + continuation length exceeds {self.max_length} tokens: "
+                    f"{len(prefix_ids)} + {len(target_ids)}"
+                )
+                prefix = torch.tensor(prefix_ids, device=self.device, dtype=torch.long)
+                target = torch.tensor(target_ids, device=self.device, dtype=torch.long)
+
                 if self.nll_type == "mc":
                     ll = -self._eval_target_nll_mc(prefix, target)
                     if self.log_type == "union":
@@ -518,10 +545,7 @@ class DreamEvalHarness(LM):
                 else:
                     raise NotImplementedError(self.nll_type)
 
-                # TODO: greedy decoding
-                is_target_greedy_dec = False
-
-                out.append((ll, 1.0 if is_target_greedy_dec else 0.0))
+                out.append((ll, False))
         return out
 
     def loglikelihood_rolling(self, requests: list[Instance]) -> list[float]:

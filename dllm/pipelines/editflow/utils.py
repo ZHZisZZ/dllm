@@ -23,6 +23,8 @@ class X0Sampler:
 class SampleX0Empty(X0Sampler):
     """Return BOS-only (i.e., empty tail)."""
 
+    tokenizer: transformers.PreTrainedTokenizer | None = None
+
     def __call__(self, *args, **kwargs) -> list[int]:
         return []
 
