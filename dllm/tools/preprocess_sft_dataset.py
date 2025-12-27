@@ -25,7 +25,7 @@ class ScriptArguments:
     """Preprocess SFT dataset."""
 
     model_name_or_path: str = "GSAI-ML/LLaDA-8B-Base"
-    sft_map_fn_path: str = "dllm.utils.default_mdlm_sft_map_fn"
+    sft_map_fn_path: str = "dllm.utils.default_sft_map_fn"
     dataset_args: str = "HuggingFaceTB/smoltalk"  # required
     output_dir: str = "data/sft/llada/smoltalk"  # required
     mask_prompt_loss: bool = True  # Mask prompt tokens in labels with -100

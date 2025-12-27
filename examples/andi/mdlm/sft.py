@@ -4,12 +4,12 @@ Local users
 - 1 GPU:
     accelerate launch \
         --config_file scripts/accelerate_configs/ddp.yaml --num_processes 1 \
-        examples/a2d/bd3lm/sft.py
+        examples/andi/mdlm/sft.py
 
 - 8 GPUs (ZeRO-2):
     accelerate launch \
         --config_file scripts/accelerate_configs/zero2.yaml \
-        examples/a2d/bd3lm/sft.py
+        examples/andi/mdlm/sft.py
 
 Slurm users
 # Note: run `mkdir logs` before running sbatch; and adjust
@@ -18,12 +18,12 @@ Slurm users
 - 1 Node, 8 GPUs (ZeRO-2):
     sbatch --gres=gpu:8 scripts/train.slurm.sh \
         --accelerate_config "zero2" \
-        --script_path "examples/a2d/bd3lm/sft.py"
+        --script_path "examples/andi/mdlm/sft.py"
 
 - 2 Nodes, 16 GPUs (ZeRO-2):
     sbatch --nodes=2 --gres=gpu:8 scripts/train.slurm.sh \
         --accelerate_config "zero2" \
-        --script_path "examples/a2d/bd3lm/sft.py"
+        --script_path "examples/andi/mdlm/sft.py"
 """
 
 import os
@@ -40,7 +40,7 @@ logger = dllm.utils.get_default_logger(__name__)
 
 @dataclass
 class ModelArguments(dllm.utils.ModelArguments):
-    model_name_or_path: str = "models/a2d/Qwen3-0.6B"
+    model_name_or_path: str = "models/andi/Qwen3-0.6B"
 
 
 @dataclass
@@ -56,15 +56,16 @@ class DataArguments(dllm.utils.DataArguments):
 
 @dataclass
 class TrainingArguments(dllm.utils.TrainingArguments):
-    output_dir: str = "models/a2d/Qwen3-0.6B/mdlm/alpaca"
+    output_dir: str = "models/andi/Qwen3-0.6B/ar+mdlm/alpaca"
     group_by_length: bool = True
-    num_train_epochs: int = 20
     learning_rate: float = 1e-4
+    num_train_epochs: int = 20
     per_device_train_batch_size: int = 16
     per_device_eval_batch_size: int = 16
-    # a2d-specific
-    block_size: int = 32
-    right_shift_logits: bool = False
+    # andi-specific
+    loss_weight_type: str = "uniform"
+    ar_loss_scale: float = 1.0
+    diff_loss_scale: float = 1.0
 
 
 def train():
@@ -104,22 +105,23 @@ def train():
     # ----- Training --------------------------------------------------------------
     accelerate.PartialState().wait_for_everyone()
     logger.info("Start training...")
-    trainer = dllm.core.trainers.BD3LMTrainer(
+    trainer = dllm.pipelines.andi.trainers.MDLMAnDSLTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=dataset["train"],
         eval_dataset=dataset.get("test", None),
         args=training_args,
-        block_size=training_args.block_size,
-        right_shift_logits=training_args.right_shift_logits,
+        ar_loss_scale=training_args.ar_loss_scale,
+        diff_loss_scale=training_args.diff_loss_scale,
+        loss_weight_type=training_args.loss_weight_type,
         data_collator=(
-            dllm.core.trainers.bd3lm.AppendEOSBlockWrapper(
+            dllm.utils.NoAttentionMaskWrapper(  # padded <eos_token> should be visible
                 transformers.DataCollatorForSeq2Seq(
                     tokenizer,
                     return_tensors="pt",
                     padding=True,
+                    label_pad_token_id=tokenizer.pad_token_id,  # finetune on padded <eos_token>
                 ),
-                block_size=training_args.block_size,
             )
         ),
     )

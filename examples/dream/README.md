@@ -88,7 +88,7 @@ We tried our best to reproduce [`Dream-v0-Instruct-7B`](https://huggingface.co/D
 # Preprocessing SFT data (optional, but can avoid redundant preprocessing for multi-node training)
 python dllm/tools/preprocess_sft_dataset.py \
     --model_name_or_path "Dream-org/Dream-v0-Base-7B" \
-    --sft_map_fn_path "dllm.utils.default_mdlm_sft_map_fn" \
+    --sft_map_fn_path "dllm.utils.default_sft_map_fn" \
     --dataset_args "allenai/tulu-3-sft-mixture" \
     --output_dir "data/sft/dream/tulu-3-sft-mixture" \
     --num_proc 64
