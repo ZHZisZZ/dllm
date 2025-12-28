@@ -43,7 +43,7 @@ class MDLMTrainer(transformers.Trainer):
         self.loss_normalization_type = loss_normalization_type
         self.right_shift_logits = right_shift_logits
 
-        self.epoch_meter = EpochPPLMeter(self, train_prefix="train", eval_prefix="eval")
+        self.epoch_meter = EpochPPLMeter(self)
         self.add_callback(self.epoch_meter)
 
     def _preprocess_inputs(self, inputs):
