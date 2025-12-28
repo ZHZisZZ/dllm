@@ -94,7 +94,7 @@ class BD3LMTrainer(MDLMTrainer):
         super().__init__(*args, **kwargs)
         self.block_size = block_size
 
-        self.epoch_meter = EpochPPLMeter(self, train_prefix="train", eval_prefix="eval")
+        self.epoch_meter = EpochPPLMeter(self)
         self.add_callback(self.epoch_meter)
 
     def compute_loss(

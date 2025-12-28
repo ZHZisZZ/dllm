@@ -171,7 +171,7 @@ class MDLMAnDSLTrainer(BaseAnDSLTrainer, MDLMTrainer):
         return MDLMTrainer.compute_loss(self, model, inputs, return_outputs, **kwargs)
 
 
-class BD3LMAnDTrainer(BaseAnDSLTrainer, BD3LMTrainer):
+class BD3LMAnDSLTrainer(BaseAnDSLTrainer, BD3LMTrainer):
 
     def __init__(
         self,
