@@ -85,14 +85,18 @@ def block_diff_mask(b, h, q_idx, kv_idx, block_size=None, n=None):
 
 class BD3LMTrainer(MDLMTrainer):
 
+    @dataclass
+    class BD3LMConfig(MDLMTrainer.MDLMConfig):
+        block_size: int = 32
+
     def __init__(
         self,
-        block_size: int = 32,
-        *args,
+        args: BD3LMConfig,
+        *pargs,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-        self.block_size = block_size
+        super().__init__(args=args, *pargs, **kwargs)
+        self.block_size = args.block_size
 
         self.epoch_meter = EpochPPLMeter(self)
         self.add_callback(self.epoch_meter)

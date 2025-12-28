@@ -55,7 +55,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(dllm.pipelines.andi.trainers.MDLMAnDSLTrainer.MDLMAnDSLConfig):
     output_dir: str = "models/andi/Qwen3-0.6B/ar+mdlm/alpaca"
     group_by_length: bool = True
     learning_rate: float = 1e-4
@@ -112,10 +112,6 @@ def train():
         train_dataset=dataset["train"],
         eval_dataset=dataset.get("test", None),
         args=training_args,
-        ar_loss_scale=training_args.ar_loss_scale,
-        diff_loss_scale=training_args.diff_loss_scale,
-        loss_weight_type=training_args.loss_weight_type,
-        loss_normalization_type=training_args.loss_normalization_type,
         data_collator=(
             dllm.utils.NoAttentionMaskWrapper(  # padded <eos_token> should be visible
                 transformers.DataCollatorForSeq2Seq(

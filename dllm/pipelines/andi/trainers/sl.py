@@ -1,4 +1,5 @@
 from typing import Any
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
@@ -149,17 +150,22 @@ class BaseAnDSLTrainer:
 
 class MDLMAnDSLTrainer(BaseAnDSLTrainer, MDLMTrainer):
 
+    @dataclass
+    class MDLMAnDSLConfig(MDLMTrainer.MDLMConfig):
+        ar_loss_scale: float = 1.0
+        diff_loss_scale: float = 1.0
+
+
     def __init__(
         self,
-        ar_loss_scale: float = 1.0,
-        diff_loss_scale: float = 1.0,
-        *args,
+        args: MDLMAnDSLConfig,
+        *pargs,
         **kwargs,
     ):
         BaseAnDSLTrainer.__init__(
-            self, ar_loss_scale=ar_loss_scale, diff_loss_scale=diff_loss_scale
+            self, ar_loss_scale=args.ar_loss_scale, diff_loss_scale=args.diff_loss_scale
         )
-        MDLMTrainer.__init__(self, *args, **kwargs)
+        MDLMTrainer.__init__(self, args=args, *pargs, **kwargs)
 
     def compute_diff_loss(
         self,
@@ -173,17 +179,21 @@ class MDLMAnDSLTrainer(BaseAnDSLTrainer, MDLMTrainer):
 
 class BD3LMAnDSLTrainer(BaseAnDSLTrainer, BD3LMTrainer):
 
+    @dataclass
+    class BD3LMAnDSLConfig(BD3LMTrainer.BD3LMConfig):
+        ar_loss_scale: float = 1.0
+        diff_loss_scale: float = 1.0
+
     def __init__(
         self,
-        ar_loss_scale: float = 1.0,
-        diff_loss_scale: float = 1.0,
-        *args,
+        args: BD3LMAnDSLConfig,
+        *pargs,
         **kwargs,
     ):
         BaseAnDSLTrainer.__init__(
-            self, ar_loss_scale=ar_loss_scale, diff_loss_scale=diff_loss_scale
+            self, ar_loss_scale=args.ar_loss_scale, diff_loss_scale=args.diff_loss_scale
         )
-        BD3LMTrainer.__init__(self, *args, **kwargs)
+        BD3LMTrainer.__init__(self, args=args, *pargs, **kwargs)
 
     def compute_diff_loss(
         self,

@@ -60,7 +60,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(dllm.pipelines.andi.trainers.BD3LMAnDSLTrainer.BD3LMAnDSLConfig):
     output_dir: str = "models/andi/Qwen3-0.6B/mdlm/openwebtext"
     max_steps: int = 100_000
     learning_rate: float = 1e-4
@@ -128,11 +128,6 @@ def train():
         train_dataset=dataset["train"],
         eval_dataset=dataset.get("test", None),
         args=training_args,
-        block_size=training_args.block_size,
-        ar_loss_scale=training_args.ar_loss_scale,
-        diff_loss_scale=training_args.diff_loss_scale,
-        loss_weight_type=training_args.loss_weight_type,
-        loss_normalization_type=training_args.loss_normalization_type,
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer,
             return_tensors="pt",

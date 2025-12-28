@@ -1,4 +1,5 @@
 from typing import Any
+from dataclasses import dataclass
 
 import torch
 
@@ -42,19 +43,15 @@ class DreamTrainer(MDLMTrainer):
     DreamTrainer: specialization of MDLMTrainer for Dream training.
     """
 
-    def __init__(
-        self,
-        loss_weight_type: str = "cart[geo_p:0.3]",
-        *args,
-        **kwargs,
-    ):
-        super().__init__(
-            loss_weight_type=loss_weight_type,
-            *args,
-            **kwargs,
-        )
+    @dataclass
+    class DreamConfig(MDLMTrainer.MDLMConfig):
+        loss_weight_type: str = "cart[geo_p:0.3]"
+        right_shift_logits: bool = True
 
-        self.right_shift_logits = True
+        def __post_init__(self):
+            super().__post_init__()
+            assert self.right_shift_logits
+    
 
     def _compute_loss_weights(
         self,

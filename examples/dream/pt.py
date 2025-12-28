@@ -65,7 +65,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(dllm.pipelines.dream.DreamTrainer.DreamConfig):
     output_dir: str = (
         "models/Dream-v0-Base-7B/dclm-baseline-1.0[train:10_000_000,test:10_000]"
     )
@@ -142,7 +142,6 @@ def train():
         train_dataset=dataset["train"],
         eval_dataset=dataset.get("test", None),
         args=training_args,
-        loss_weight_type=training_args.loss_weight_type,
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer,
             return_tensors="pt",

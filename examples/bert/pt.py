@@ -60,7 +60,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(dllm.core.trainers.MDLMTrainer.MDLMConfig):
     output_dir: str = "models/ModernBERT-base/tiny-shakespeare"
     num_train_epochs: int = 20
     learning_rate: float = 1e-4

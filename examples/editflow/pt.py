@@ -31,7 +31,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(editflow.EditFlowTrainer.EditFlowConfig):
     output_dir: str = None  # overwrite this
     num_train_epochs: int = 10
     learning_rate: float = 1e-4
@@ -43,17 +43,9 @@ class TrainingArguments(dllm.utils.TrainingArguments):
         metadata={
             "help": (
                 "The scheduler class controlling κ(t). "
-                "Available options: see `dllm/utils/schedulers/kappa.py`"
+                "Available options: see `dllm/core/schedulers/kappa.py`"
             )
         },
-    )
-    normalize_per_position: bool = field(
-        default=True,
-        metadata={"help": "Whether to normalize the loss per position."},
-    )
-    max_w: float = field(
-        default=20.0,
-        metadata={"help": "The maximum weight (κ'(t) / (1 - κ(t))) for the loss."},
     )
     x0_sampler: str = field(
         default="masks[length:128]",
@@ -129,8 +121,6 @@ def train(
         scheduler=dllm.core.schedulers.make_kappa_scheduler(
             training_args.scheduler_cls
         ),
-        normalize_per_position=training_args.normalize_per_position,
-        max_w=training_args.max_w,
     )
     trainer.train()
     trainer.save_model(os.path.join(training_args.output_dir, "checkpoint-final"))

@@ -55,7 +55,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(dllm.core.trainers.MDLMTrainer.MDLMConfig):
     output_dir: str = "models/LLaDA-8B-Base/tulu-3-sft-mixture[train:10000,test:1000]"
     group_by_length: bool = True
     num_train_epochs: float = 5

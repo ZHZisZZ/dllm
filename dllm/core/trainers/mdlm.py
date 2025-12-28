@@ -9,6 +9,7 @@ https://arxiv.org/abs/2502.09992
 """
 
 from typing import Any
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
@@ -16,32 +17,38 @@ import torch.nn.functional as F
 import transformers
 
 from dllm.core.schedulers import BaseAlphaScheduler, LinearAlphaScheduler
+from dllm.utils.configs import TrainingArguments
 from dllm.utils.data import prepend_bos
 from .utils import EpochPPLMeter
 
 
 class MDLMTrainer(transformers.Trainer):
 
+    @dataclass
+    class MDLMConfig(TrainingArguments):
+        time_epsilon: float = 1e-3
+        loss_weight_type: str = "scheduler"  # "scheduler", "uniform"
+        loss_normalization_type: str = "sequence"  # "batch", "sequence", "token"
+        right_shift_logits: bool = False
+
+
     def __init__(
         self,
+        args: MDLMConfig,
         scheduler: BaseAlphaScheduler | None = None,
-        time_epsilon: float = 1e-3,
-        loss_weight_type: str = "scheduler",  # "scheduler", "uniform"
-        loss_normalization_type: str = "sequence",  # "batch", "sequence", "token"
-        right_shift_logits: bool = False,
-        *args,
+        *pargs,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(args=args, *pargs, **kwargs)
 
-        if not (0.0 < time_epsilon < 1.0):
+        if not (0.0 < args.time_epsilon < 1.0):
             raise ValueError("time_epsilon must be in (0, 1)")
 
-        self.scheduler = scheduler or LinearAlphaScheduler()
-        self.time_epsilon = time_epsilon
-        self.loss_weight_type = loss_weight_type
-        self.loss_normalization_type = loss_normalization_type
-        self.right_shift_logits = right_shift_logits
+        self.scheduler = scheduler if scheduler is not None else LinearAlphaScheduler()
+        self.time_epsilon = args.time_epsilon
+        self.loss_weight_type = args.loss_weight_type
+        self.loss_normalization_type = args.loss_normalization_type
+        self.right_shift_logits = args.right_shift_logits
 
         self.epoch_meter = EpochPPLMeter(self)
         self.add_callback(self.epoch_meter)
