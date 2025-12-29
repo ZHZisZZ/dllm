@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from functools import partial
 
 import accelerate
+import transformers
 
 import dllm
 from dllm.pipelines import editflow
@@ -80,11 +81,12 @@ def sft_map_fn(row, *, tokenizer, mask_prompt_loss: bool = True) -> dict:
         return {"input_ids": prompt_response_tokens}
 
 
-def train(
-    model_args: ModelArguments,
-    data_args: DataArguments,
-    training_args: TrainingArguments,
-):
+def train():
+    # ----- Argument parsing -------------------------------------------------------
+    parser = transformers.HfArgumentParser(
+        (ModelArguments, DataArguments, TrainingArguments)
+    )
+    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     # necessary when batch does not contain "labels" field
     training_args.label_names = []
     # necessary when batch contains customized fields
@@ -144,3 +146,7 @@ def train(
     trainer.processing_class.save_pretrained(
         os.path.join(training_args.output_dir, "checkpoint-final")
     )
+
+
+if __name__ == "__main__":
+    train()
