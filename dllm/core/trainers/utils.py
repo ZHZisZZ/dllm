@@ -29,7 +29,9 @@ class EpochPPLMeter(transformers.TrainerCallback):
         else:
             raise ValueError(f"Unknown split={split}")
 
-    def update(self, split: str, nll_sum: torch.Tensor, token_cnt: torch.Tensor) -> None:
+    def update(
+        self, split: str, nll_sum: torch.Tensor, token_cnt: torch.Tensor
+    ) -> None:
         nll_sum_f = float(nll_sum.detach().double().cpu().item())
         tok_cnt_f = float(token_cnt.detach().double().cpu().item())
 
@@ -96,17 +98,21 @@ class EpochPPLMeter(transformers.TrainerCallback):
 
             # TRAIN: NO "train_" prefix
             if train_mean_nll is not None:
-                logs.update({
-                    "diff_nll": train_mean_nll,
-                    "diff_ppl": train_ppl,
-                })
+                logs.update(
+                    {
+                        "diff_nll": train_mean_nll,
+                        "diff_ppl": train_ppl,
+                    }
+                )
 
             # EVAL: MUST be "eval_" prefixed
             if eval_mean_nll is not None:
-                logs.update({
-                    "eval_diff_nll": eval_mean_nll,
-                    "eval_diff_ppl": eval_ppl,
-                })
+                logs.update(
+                    {
+                        "eval_diff_nll": eval_mean_nll,
+                        "eval_diff_ppl": eval_ppl,
+                    }
+                )
 
             if logs:
                 self.trainer.log(logs)

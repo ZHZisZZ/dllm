@@ -364,9 +364,7 @@ class LLaDAEvalHarness(LM):
         for instance in tqdm(requests, desc="Generating..."):
             context, gen_kwargs = instance.args  # type: ignore
             prompt_ids = self.tokenizer(context)["input_ids"]
-            prompt = [
-                torch.tensor(prompt_ids, device=self.device, dtype=torch.long)
-            ]
+            prompt = [torch.tensor(prompt_ids, device=self.device, dtype=torch.long)]
             stop_tokens = gen_kwargs["until"]
             generated_ids = sampler.sample(
                 inputs=prompt,

@@ -57,7 +57,9 @@ def main():
         tgt_model = transformers.AutoModel.from_config(tgt_config)
 
         if not args.random_init:
-            missing, unexpected = tgt_model.load_state_dict(src_model.state_dict(), strict=False)
+            missing, unexpected = tgt_model.load_state_dict(
+                src_model.state_dict(), strict=False
+            )
             print("missing:", missing)
             print("unexpected:", unexpected)
 

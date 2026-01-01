@@ -51,7 +51,6 @@ class DreamTrainer(MDLMTrainer):
         def __post_init__(self):
             super().__post_init__()
             assert self.right_shift_logits
-    
 
     def _compute_loss_weights(
         self,

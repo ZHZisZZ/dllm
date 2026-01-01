@@ -49,9 +49,8 @@ class BaseMetricsCallback(transformers.TrainerCallback):
         self._metrics: Dict[str, Dict[str, torchmetrics.Metric]] = {}
 
         # Detect broadcast map: {name: Metric}
-        is_broadcast = (
-            len(metrics_map) > 0
-            and all(isinstance(v, torchmetrics.Metric) for v in metrics_map.values())
+        is_broadcast = len(metrics_map) > 0 and all(
+            isinstance(v, torchmetrics.Metric) for v in metrics_map.values()
         )
 
         device = getattr(self.trainer.args, "device", torch.device("cpu"))
@@ -61,7 +60,9 @@ class BaseMetricsCallback(transformers.TrainerCallback):
                 # IMPORTANT: deepcopy so each split has independent state
                 mdict = {k: copy.deepcopy(v) for k, v in metrics_map.items()}
             else:
-                mdict = {k: copy.deepcopy(v) for k, v in metrics_map.get(split, {}).items()}
+                mdict = {
+                    k: copy.deepcopy(v) for k, v in metrics_map.get(split, {}).items()
+                }
 
             # Configure dtype / device
             for m in mdict.values():
@@ -184,28 +185,3 @@ class OnEvaluateMetricsCallback(BaseMetricsCallback):
         # Log both train + eval by default (matches your previous behavior).
         self.log_and_print(state, splits=("train", "eval"))
         return control
-
-
-# if __name__ == "__main__":
-#     from transformers import Trainer
-#     import torchmetrics
-#     from .metrics import NLLMetric, PerplexityMetric
-
-#     def metrics_factory():
-#         return {
-#             "diff_nll": NLLMetric(),
-#             "diff_ppl": PerplexityMetric(),
-#         }
-
-#     meter = OnEvaluateMetricsCallback(
-#         trainer=Trainer(),
-#         splits=("train", "eval"),
-#         metrics_factory=metrics_factory,
-#     )
-
-#     nll_sum = torch.tensor(10.0)
-#     token_cnt = torch.tensor(5.0)
-
-#     # 你原来传 nll_sum / token_cnt 的位置，现在这样传：
-#     meter.update("train", value=(nll_sum / token_cnt.clamp_min(1)), weight=token_cnt)
-#     meter.update("eval",  value=(nll_sum / token_cnt.clamp_min(1)), weight=token_cnt)

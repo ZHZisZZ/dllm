@@ -9,19 +9,20 @@ from datasets import DatasetDict, load_dataset
 #     }
 # ]
 
+
 def load_dataset_s1k(dataset_name_or_path: str) -> DatasetDict:
 
     dataset = load_dataset(dataset_name_or_path)
 
     def map_fn(example):
-        
+
         return {
             "messages": [
                 {"role": "user", "content": example["question"]},
                 {
-                    "role": "assistant", 
-                    "reasoning_content": example["thinking_trajectories"][0], 
-                    "content": example["attempt"]
+                    "role": "assistant",
+                    "reasoning_content": example["thinking_trajectories"][0],
+                    "content": example["attempt"],
                 },
             ]
         }

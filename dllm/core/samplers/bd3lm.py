@@ -231,7 +231,9 @@ class BD3LMSampler(BaseSampler):
         # 1) Initialize with prompt only (left padded with pad_id)
         #    pad prefix length to a multiple of block_size
         # ==========================================================
-        padded_prompt_len = ((max_prompt_len + block_size - 1) // block_size) * block_size
+        padded_prompt_len = (
+            (max_prompt_len + block_size - 1) // block_size
+        ) * block_size
 
         x = torch.full(
             (B, padded_prompt_len),

@@ -139,7 +139,9 @@ class BD3LMTrainer(MDLMTrainer):
         # === 2. Apply stochastic masking ===
         # Tokens are masked independently according to p_mask(t).
         # Positions with label = -100 are excluded (ignored in loss).
-        masked_mask = (torch.rand((b, l), device=input_ids.device) < p_mask) & maskable_mask
+        masked_mask = (
+            torch.rand((b, l), device=input_ids.device) < p_mask
+        ) & maskable_mask
         # Replace masked tokens with the special [MASK] token.
         noised_input_ids = torch.where(
             masked_mask, self.processing_class.mask_token_id, input_ids
@@ -217,15 +219,16 @@ class BD3LMTrainer(MDLMTrainer):
 
         # === 6. Compute weighted cross-entropy ===
         # Sanity check: ensure input_ids and labels match at valid positions
-        assert (input_ids[maskable_mask] == labels[maskable_mask]).all(), \
-            "Mismatch between input_ids and labels at valid positions"
-        
+        assert (
+            input_ids[maskable_mask] == labels[maskable_mask]
+        ).all(), "Mismatch between input_ids and labels at valid positions"
+
         token_nll = F.cross_entropy(
             logits.transpose(1, 2),  # [b, V, l]
-            input_ids,               # [b, l]
-            reduction="none",        # [b, l]
+            input_ids,  # [b, l]
+            reduction="none",  # [b, l]
         )
-        token_nll = token_nll * loss_weights * masked_mask.to(token_nll.dtype) # [b, l]
+        token_nll = token_nll * loss_weights * masked_mask.to(token_nll.dtype)  # [b, l]
 
         self.meter.update(
             split="train" if model.training else "eval",

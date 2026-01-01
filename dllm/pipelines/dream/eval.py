@@ -214,9 +214,9 @@ class DreamEvalHarness(LM):
 
             # tokenize
             prompt_ids = [
-                self.tokenizer(
-                    p, return_tensors="pt", padding=False
-                ).input_ids.squeeze().to(self.device)
+                self.tokenizer(p, return_tensors="pt", padding=False)
+                .input_ids.squeeze()
+                .to(self.device)
                 for p in prompts
             ]
             prompt_lens = [len(p_id) for p_id in prompt_ids]
