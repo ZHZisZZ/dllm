@@ -13,7 +13,7 @@ from dllm.core.samplers.base import BaseSampler, SamplerConfig, SamplerOutput
 from dllm.core.samplers.utils import add_gumbel_noise, get_num_transfer_tokens
 
 
-def build_staircase_attention_mask(
+def _prepare_for_sampling(
     x: torch.Tensor,
     block_size: int,
     pad_token_id: int,
@@ -81,7 +81,7 @@ def build_staircase_attention_mask(
     return attn_mask, position_ids
 
 
-def diffusion_step_block(
+def _diffusion_step_block(
     logits: torch.Tensor,  # [B, L, V]
     x_block: torch.Tensor,  # [B, L]
     mask_block: torch.Tensor,  # [B, L] bool
@@ -283,7 +283,7 @@ class BD3LMSampler(BaseSampler):
             x_prefix = x  # [B, T_prefix]
             B_cur, T_prefix = x_prefix.shape
 
-            prefix_attn, prefix_pos = build_staircase_attention_mask(
+            prefix_attn, prefix_pos = _prepare_for_sampling(
                 x=x_prefix,
                 block_size=block_size,
                 pad_token_id=pad_id,
@@ -354,7 +354,7 @@ class BD3LMSampler(BaseSampler):
             effective_steps = num_transfer_tokens.size(1)
 
             # Full staircase attention mask + pos for prefix + current block
-            full_attention_mask, full_position_ids = build_staircase_attention_mask(
+            full_attention_mask, full_position_ids = _prepare_for_sampling(
                 x=x,
                 block_size=block_size,
                 pad_token_id=pad_id,
@@ -418,7 +418,7 @@ class BD3LMSampler(BaseSampler):
                     logits_block = shifted
 
                 # ---- One diffusion step over this block ----
-                x_block_updated = diffusion_step_block(
+                x_block_updated = _diffusion_step_block(
                     logits=logits_block,
                     x_block=x_block,
                     mask_block=mask_block,

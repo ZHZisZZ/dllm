@@ -94,11 +94,6 @@ def get_tokenizer(model_args) -> transformers.PreTrainedTokenizer:
         A2DQwen2LMHeadModel,
         A2DQwen3LMHeadModel,
     )
-    from dllm.pipelines.andi import (
-        AnDLlamaLMHeadModel,
-        AnDQwen2LMHeadModel,
-        AnDQwen3LMHeadModel,
-    )
     from dllm.pipelines.dream.models.modeling_dream import DreamModel
     from dllm.pipelines.llada2.models.modeling_llada2_moe import LLaDA2MoeModelLM
     from dllm.pipelines.llada.models.modeling_llada import LLaDAModelLM
@@ -184,11 +179,11 @@ def get_tokenizer(model_args) -> transformers.PreTrainedTokenizer:
 [Answer]
 {% endif %}
 """
-    elif issubclass(model_cls, (A2DLlamaLMHeadModel, AnDLlamaLMHeadModel)):
+    elif issubclass(model_cls, A2DLlamaLMHeadModel):
         tokenizer.add_special_tokens({"mask_token": "<|mask|>"})
         tokenizer.eot_token = "<|eot_id|>"
         tokenizer.eot_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eot_token)
-    elif issubclass(model_cls, (A2DQwen2LMHeadModel, A2DQwen3LMHeadModel, AnDQwen2LMHeadModel, AnDQwen3LMHeadModel)):
+    elif issubclass(model_cls, (A2DQwen2LMHeadModel, A2DQwen3LMHeadModel)):
         tokenizer.add_special_tokens({"mask_token": "<|mask|>"})
         tokenizer.eot_token = "<|im_end|>"
         tokenizer.eot_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eot_token)

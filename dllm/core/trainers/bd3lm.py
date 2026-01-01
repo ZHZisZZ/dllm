@@ -17,7 +17,6 @@ import transformers
 from dllm.utils.collators import CollatorWrapper
 
 from .mdlm import MDLMTrainer
-from .utils import EpochPPLMeter
 
 
 @dataclass
@@ -40,7 +39,7 @@ class AppendEOSBlockWrapper(CollatorWrapper):
         return features
 
 
-def block_diff_mask(b, h, q_idx, kv_idx, block_size=None, n=None):
+def _bd3lm_attention_mask(b, h, q_idx, kv_idx, block_size=None, n=None):
     """
     Constructs the specialized block diffusion attention mask for training
     composed of three masks:
@@ -98,9 +97,6 @@ class BD3LMTrainer(MDLMTrainer):
         super().__init__(args=args, *pargs, **kwargs)
         self.block_size = args.block_size
 
-        self.epoch_meter = EpochPPLMeter(self)
-        self.add_callback(self.epoch_meter)
-
     def compute_loss(
         self,
         model: transformers.PreTrainedModel | nn.Module,
@@ -130,7 +126,7 @@ class BD3LMTrainer(MDLMTrainer):
             inputs.get("attention_mask", None),
         )
         b, l = input_ids.shape
-        token_cnt_per_seq = torch.sum(labels != -100, dim=1, keepdim=True)  # [b, 1]
+        maskable_mask = labels != -100  # [b, l]
 
         # === 1. Sample diffusion timesteps ===
         # Each example draws a random timestep t ∈ [ε, 1), where ε avoids degenerate values near 0.
@@ -143,12 +139,12 @@ class BD3LMTrainer(MDLMTrainer):
         # === 2. Apply stochastic masking ===
         # Tokens are masked independently according to p_mask(t).
         # Positions with label = -100 are excluded (ignored in loss).
-        masked_indices = (torch.rand((b, l), device=input_ids.device) < p_mask) & (
+        masked_mask = (torch.rand((b, l), device=input_ids.device) < p_mask) & (
             labels != -100
         )
         # Replace masked tokens with the special [MASK] token.
         noised_input_ids = torch.where(
-            masked_indices, self.processing_class.mask_token_id, input_ids
+            masked_mask, self.processing_class.mask_token_id, input_ids
         )
 
         # === 3. Forward pass through the model (block-diffusion) ===
@@ -159,7 +155,7 @@ class BD3LMTrainer(MDLMTrainer):
 
         # [TODO]: others like flash attention 2
         if self.accelerator.unwrap_model(model).config._attn_implementation == "sdpa":
-            attention_mask = block_diff_mask(
+            attention_mask = _bd3lm_attention_mask(
                 b=None,
                 h=None,
                 q_idx=torch.arange(l * 2)[:, None],
@@ -178,7 +174,7 @@ class BD3LMTrainer(MDLMTrainer):
             from torch.nn.attention.flex_attention import create_block_mask
 
             attention_mask = create_block_mask(
-                partial(block_diff_mask, block_size=self.block_size, n=l),
+                partial(_bd3lm_attention_mask, block_size=self.block_size, n=l),
                 B=None,
                 H=None,
                 Q_LEN=l * 2,
@@ -205,46 +201,46 @@ class BD3LMTrainer(MDLMTrainer):
         # === 4. Handle degenerate cases (no tokens masked) ===
         # If no positions were masked, return a zero loss to keep gradients valid.
         # This step is necessary for Deepspeed Zero-{2,3}
-        if not masked_indices.any():
-            self.epoch_meter.update(
-                split="train" if model.training else "eval", 
-                nll_sum=logits.sum() * 0.0, 
-                token_cnt=token_cnt_per_seq.sum(),
+        if not masked_mask.any():
+            zero = logits.sum() * 0.0  # scalar, grad-safe
+            self.meter.update(
+                split="train" if model.training else "eval",
+                value=zero.detach(),      # mean_nll = 0
+                weight=maskable_mask.sum().detach(),  # denom = total valid tokens
             )
-            return (
-                (logits.sum() * 0.0, outputs) if return_outputs else logits.sum() * 0.0
-            )
+            return (zero, outputs) if return_outputs else zero
 
         # === 5. Compute per-token loss weights ===
         # Depending on the configuration, weights may depend on timestep t
         # (e.g., scheduler-based) or be uniform (ones).
         loss_weights = self._compute_loss_weights(
-            t=t, inputs=inputs, masked_indices=masked_indices
+            t=t, inputs=inputs, masked_mask=masked_mask
         )
 
         # === 6. Compute weighted cross-entropy ===
-        # Only masked tokens contribute to the loss.
-        assert (input_ids[masked_indices] == labels[masked_indices]).all()
-        token_loss = F.cross_entropy(
-            logits[masked_indices], input_ids[masked_indices], reduction="none"
+        token_nll = F.cross_entropy(
+            logits.transpose(1, 2),  # [b, V, l]
+            input_ids,               # [b, l]
+            reduction="none",        # [b, l]
         )
-        token_loss = token_loss * loss_weights[masked_indices]
+        token_nll = token_nll * loss_weights * masked_mask.to(token_nll.dtype) # [b, l]
+
+        self.meter.update(
+            split="train" if model.training else "eval",
+            value=token_nll.detach(),
+            weight=maskable_mask.detach(),
+        )
 
         # === 7. Normalize loss ===
-        if self.loss_normalization_type == "batch":
-            token_loss_normalized = token_loss / b
-        elif self.loss_normalization_type == "sequence":
-            token_loss_normalized = token_loss / token_cnt_per_seq.expand(-1, l)[masked_indices] / b
-        elif self.loss_normalization_type == "token":
-            token_loss_normalized = token_loss / token_cnt_per_seq.sum()
+        if self.loss_norm_type == "batch":
+            token_nll /= b
+        elif self.loss_norm_type == "sequence":
+            token_nll /= maskable_mask.sum(-1, keepdim=True) * b
+        elif self.loss_norm_type == "token":
+            token_nll /= maskable_mask.sum()
         else:
-            raise ValueError("Invalid loss_normalization_type.")
-        loss = token_loss_normalized.sum()
+            raise ValueError("Invalid loss_norm_type.")
+        loss = token_nll.sum()
 
         # === 8. Return final loss (and optionally model outputs) ===
-        self.epoch_meter.update(
-            split="train" if model.training else "eval", 
-            nll_sum=token_loss.sum(), 
-            token_cnt=token_cnt_per_seq.sum(),
-        ) # `nll_sum / token_cnt` is equivalent to `loss` when `self.loss_normalization_type == "token"``
         return (loss, outputs) if return_outputs else loss

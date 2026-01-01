@@ -18,6 +18,7 @@ dependencies = [
     "peft==0.17.1",
     "datasets==4.2.0",
     "sentencepiece==0.2.0",
+    "torchmetrics",
     "tyro",
     "wandb",
     "omegaconf",
