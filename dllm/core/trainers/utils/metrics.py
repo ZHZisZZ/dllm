@@ -6,6 +6,7 @@ class NLLMetric(torchmetrics.aggregation.MeanMetric):
     pass
 
 
-class PerplexityMetric(torchmetrics.aggregation.MeanMetric):
+class PerplexityMetric(NLLMetric):
     def compute(self) -> torch.Tensor:
-        return torch.exp(self.mean_value / self.weight)
+        mean_nll = super().compute()
+        return torch.exp(mean_nll)

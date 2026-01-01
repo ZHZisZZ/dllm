@@ -139,9 +139,7 @@ class BD3LMTrainer(MDLMTrainer):
         # === 2. Apply stochastic masking ===
         # Tokens are masked independently according to p_mask(t).
         # Positions with label = -100 are excluded (ignored in loss).
-        masked_mask = (torch.rand((b, l), device=input_ids.device) < p_mask) & (
-            labels != -100
-        )
+        masked_mask = (torch.rand((b, l), device=input_ids.device) < p_mask) & maskable_mask
         # Replace masked tokens with the special [MASK] token.
         noised_input_ids = torch.where(
             masked_mask, self.processing_class.mask_token_id, input_ids
