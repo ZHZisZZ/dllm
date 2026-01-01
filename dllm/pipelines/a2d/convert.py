@@ -6,7 +6,6 @@ import tyro
 import dllm
 
 A2D_CONFIG_MAP = {
-    # "gpt2": dllm.pipelines.a2d.A2DGPT2Config,
     "llama": dllm.pipelines.a2d.A2DLlamaConfig,
     "qwen2": dllm.pipelines.a2d.A2DQwen2Config,
     "qwen3": dllm.pipelines.a2d.A2DQwen3Config,
@@ -17,6 +16,7 @@ A2D_CONFIG_MAP = {
 class ScriptArguments:
     model_name_or_path: str = "Qwen/Qwen2.5-0.5B"
     output_dir: str = "models/a2d/Qwen2.5-0.5B"
+    random_init: bool = False
 
     def __post_init__(self):
         self.model_name_or_path = dllm.utils.resolve_with_base_env(
@@ -54,10 +54,14 @@ def main():
     tgt_config = tgt_config_cls(**cfg_dict)
 
     with dllm.utils.init_device_context_manager():
-        # Build A2D model
         tgt_model = transformers.AutoModel.from_config(tgt_config)
-        # Direct weight copy (models match exactly)
-        tgt_model.load_state_dict(src_model.state_dict())
+
+        if not args.random_init:
+            missing, unexpected = tgt_model.load_state_dict(
+                src_model.state_dict(), strict=False
+            )
+            print("missing:", missing)
+            print("unexpected:", unexpected)
 
         # Save model and config
         tgt_model.save_pretrained(args.output_dir)

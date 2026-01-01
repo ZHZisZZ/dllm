@@ -222,7 +222,7 @@ def post_process_dataset_streaming(
         raise NotImplementedError
 
 
-def default_mdlm_sft_map_fn(row, *, tokenizer, mask_prompt_loss: bool = True) -> dict:
+def default_sft_map_fn(row, *, tokenizer, mask_prompt_loss: bool = True) -> dict:
     """
     Build input_ids and labels for SFT.
 

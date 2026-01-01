@@ -18,6 +18,7 @@ dependencies = [
     "peft==0.17.1",
     "datasets==4.2.0",
     "sentencepiece==0.2.0",
+    "torchmetrics",
     "tyro",
     "wandb",
     "omegaconf",
@@ -32,6 +33,10 @@ optional = [
     "bitsandbytes==0.48.1",
     "vllm==0.8.5.post1",
     "flash-attn==2.8.3",
+]
+rl = [
+    "trl==0.26.0",
+    "math_verify==0.8.0",
 ]
 
 [tool.black]

@@ -67,7 +67,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(dllm.core.trainers.MDLMTrainer.MDLMConfig):
     output_dir: str = (
         "models/LLaDA-8B-Base/dclm-baseline-1.0[train:10_000_000,test:10_000]"
     )

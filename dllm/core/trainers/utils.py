@@ -1,30 +1,18 @@
 import math
-
 import torch
 import transformers
 
 
 class EpochPPLMeter(transformers.TrainerCallback):
     """
-    Keeps running sums for dataset-level NLL/token and logs PPL once per epoch.
-
-    Usage:
-      - Trainer calls: self.ppl_meter.update(split, nll_sum, token_cnt)
-      - Callback hooks:
-          * on_epoch_begin: reset train accumulators
-          * on_epoch_end: finalize+log train PPL
-          * on_evaluate:   finalize+log eval  PPL (one per evaluate call)
+    Keeps running sums for dataset-level NLL/token and logs PPL.
+    Convention:
+      - Train: keys are unprefixed, e.g. "diff_nll", "diff_ppl"
+      - Eval : keys are prefixed with "eval_", e.g. "eval_diff_nll", "eval_diff_ppl"
     """
 
-    def __init__(
-        self,
-        trainer: "transformers.Trainer",
-        train_prefix: str = "train",
-        eval_prefix: str = "eval",
-    ):
+    def __init__(self, trainer: "transformers.Trainer"):
         self.trainer = trainer
-        self.train_prefix = train_prefix
-        self.eval_prefix = eval_prefix
 
         self._train_nll_sum = 0.0
         self._train_token_cnt = 0.0
@@ -41,8 +29,9 @@ class EpochPPLMeter(transformers.TrainerCallback):
         else:
             raise ValueError(f"Unknown split={split}")
 
-    def update(self, split: str, nll_sum: torch.Tensor, token_cnt: torch.Tensor) -> None:
-        # detach -> float64 -> python float
+    def update(
+        self, split: str, nll_sum: torch.Tensor, token_cnt: torch.Tensor
+    ) -> None:
         nll_sum_f = float(nll_sum.detach().double().cpu().item())
         tok_cnt_f = float(token_cnt.detach().double().cpu().item())
 
@@ -60,9 +49,8 @@ class EpochPPLMeter(transformers.TrainerCallback):
         All-reduce (sum) across processes, then compute:
             mean_nll = total_nll / total_tokens
             ppl      = exp(mean_nll)
-
-        Returns (mean_nll, ppl) as python floats, or (None, None) if no tokens.
-        Also resets that split after finalizing.
+        Returns (mean_nll, ppl) or (None, None) if no tokens.
+        Resets the split accumulators when called.
         """
         if split == "train":
             local_nll, local_tok = self._train_nll_sum, self._train_token_cnt
@@ -93,22 +81,44 @@ class EpochPPLMeter(transformers.TrainerCallback):
 
     # ---- callback hooks ----
 
-    def on_epoch_begin(self, args, state, control, **kwargs):
+    def on_train_begin(self, args, state, control, **kwargs):
         self.reset("train")
         return control
 
-    def on_epoch_end(self, args, state, control, **kwargs):
-        mean_nll, ppl = self._finalize("train")
-        if mean_nll is not None and self.trainer.is_world_process_zero():
-            logs = {f"{self.train_prefix}_nll": mean_nll, f"{self.train_prefix}_ppl": ppl}
-            self.trainer.log(logs)
-            print(f"[epoch {state.epoch}] {self.train_prefix}_nll={mean_nll:.6f} {self.train_prefix}_ppl={ppl:.6f}")
+    def on_evaluate_begin(self, args, state, control, **kwargs):
+        self.reset("eval")
         return control
 
     def on_evaluate(self, args, state, control, metrics=None, **kwargs):
-        mean_nll, ppl = self._finalize("eval")
-        if mean_nll is not None and self.trainer.is_world_process_zero():
-            logs = {f"{self.eval_prefix}_nll": mean_nll, f"{self.eval_prefix}_ppl": ppl}
-            self.trainer.log(logs)
-            print(f"[epoch {state.epoch}] {self.eval_prefix}_nll={mean_nll:.6f} {self.eval_prefix}_ppl={ppl:.6f}")
+        train_mean_nll, train_ppl = self._finalize("train")
+        eval_mean_nll, eval_ppl = self._finalize("eval")
+
+        if self.trainer.is_world_process_zero():
+            logs = {}
+
+            # TRAIN: NO "train_" prefix
+            if train_mean_nll is not None:
+                logs.update(
+                    {
+                        "diff_nll": train_mean_nll,
+                        "diff_ppl": train_ppl,
+                    }
+                )
+
+            # EVAL: MUST be "eval_" prefixed
+            if eval_mean_nll is not None:
+                logs.update(
+                    {
+                        "eval_diff_nll": eval_mean_nll,
+                        "eval_diff_ppl": eval_ppl,
+                    }
+                )
+
+            if logs:
+                self.trainer.log(logs)
+                print(
+                    f"[step {state.global_step} epoch {state.epoch}] "
+                    + " ".join(f"{k}={v:.6f}" for k, v in logs.items())
+                )
+
         return control

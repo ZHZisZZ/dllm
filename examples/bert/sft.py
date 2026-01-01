@@ -55,7 +55,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(dllm.core.trainers.MDLMTrainer.MDLMConfig):
     output_dir: str = "models/ModernBERT-large/alpaca"
     group_by_length: bool = True
     num_train_epochs: int = 20
@@ -86,7 +86,7 @@ def train():
         )
         if not data_args.load_preprocessed_data:
             map_fn = partial(
-                dllm.utils.default_mdlm_sft_map_fn,
+                dllm.utils.default_sft_map_fn,
                 tokenizer=tokenizer,
                 mask_prompt_loss=data_args.mask_prompt_loss,
             )

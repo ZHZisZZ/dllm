@@ -8,6 +8,7 @@ import transformers
 
 from dllm.core.schedulers import BaseKappaScheduler, CubicKappaScheduler
 from dllm.pipelines.editflow.utils import pad_1d
+from dllm.utils.configs import TrainingArguments
 
 BLANK = -1
 
@@ -211,20 +212,25 @@ class EditFlowTrainer(transformers.Trainer):
     True intensities are  w * rate_hat, with w = kappa_dot(t) / (1 - kappa(t)).
     """
 
+    @dataclass
+    class EditFlowConfig(TrainingArguments):
+        time_epsilon: float = 1e-3
+        normalize_per_position: bool = True
+        max_w: float = 20.0
+
     def __init__(
         self,
-        *args,
+        args: EditFlowConfig,
         scheduler: BaseKappaScheduler | None = None,
-        normalize_per_position: bool = True,
-        time_epsilon: float = 1e-3,
-        max_w: float | None = None,
+        *pargs,
         **kwargs,
     ):
-        self.scheduler = scheduler or CubicKappaScheduler()
-        self.normalize_per_position = normalize_per_position
-        self.time_epsilon = time_epsilon
-        self.max_w = max_w
-        super().__init__(*args, **kwargs)
+        super().__init__(args=args, *pargs, **kwargs)
+
+        self.scheduler = scheduler if scheduler is not None else CubicKappaScheduler()
+        self.time_epsilon = args.time_epsilon
+        self.normalize_per_position = args.normalize_per_position
+        self.max_w = args.max_w
 
     def compute_loss(
         self,

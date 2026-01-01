@@ -75,7 +75,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 
 @dataclass
-class TrainingArguments(dllm.utils.TrainingArguments):
+class TrainingArguments(dllm.pipelines.dream.DreamTrainer.DreamConfig):
     output_dir: str = (
         "models/Dream-v0-Base-7B/tulu-3-sft-mixture[train:10000,test:1000]"
     )
@@ -120,7 +120,7 @@ def train():
         )
         if not data_args.load_preprocessed_data:
             map_fn = partial(
-                dllm.utils.default_mdlm_sft_map_fn,
+                dllm.utils.default_sft_map_fn,
                 tokenizer=tokenizer,
                 mask_prompt_loss=data_args.mask_prompt_loss,
             )
@@ -141,7 +141,6 @@ def train():
         train_dataset=dataset["train"],
         eval_dataset=dataset.get("test", None),
         args=training_args,
-        loss_weight_type=training_args.loss_weight_type,
         data_collator=dream.utils.DreamSFTCollator(
             tokenizer,
             return_tensors="pt",

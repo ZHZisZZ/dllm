@@ -109,7 +109,7 @@ Though LLaDA is trained on proprietary data, we tried our best to reproduce [`LL
 # Preprocessing SFT data (optional, but can avoid redundant preprocessing for multi-node training)
 python dllm/tools/preprocess_sft_dataset.py \
     --model_name_or_path "GSAI-ML/LLaDA-8B-Base" \
-    --sft_map_fn_path "dllm.utils.default_mdlm_sft_map_fn" \
+    --sft_map_fn_path "dllm.utils.default_sft_map_fn" \
     --dataset_args "allenai/tulu-3-sft-mixture" \
     --output_dir "data/sft/llada/tulu-3-sft-mixture" \
     --num_proc 64
