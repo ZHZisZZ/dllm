@@ -183,7 +183,7 @@ class MDLMTrainer(transformers.Trainer):
             self.meter.update(
                 split="train" if model.training else "eval",
                 value=torch.zeros_like(maskable_mask, dtype=logits.dtype),
-                weight=maskable_mask.detach(),
+                weight=maskable_mask.to(dtype=logits.dtype).detach(),
             )
             return (zero, outputs) if return_outputs else zero
 
@@ -209,7 +209,7 @@ class MDLMTrainer(transformers.Trainer):
         self.meter.update(
             split="train" if model.training else "eval",
             value=token_nll.detach(),
-            weight=maskable_mask.detach(),
+            weight=maskable_mask.to(dtype=logits.dtype).detach(),
         )
 
         # === 7. Normalize loss ===
