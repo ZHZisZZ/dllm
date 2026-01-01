@@ -205,8 +205,8 @@ class BD3LMTrainer(MDLMTrainer):
             zero = logits.sum() * 0.0  # scalar, grad-safe
             self.meter.update(
                 split="train" if model.training else "eval",
-                value=zero.detach(),      # mean_nll = 0
-                weight=maskable_mask.sum().detach(),  # denom = total valid tokens
+                value=torch.zeros_like(maskable_mask, dtype=logits.dtype),
+                weight=maskable_mask.detach(),
             )
             return (zero, outputs) if return_outputs else zero
 
@@ -218,6 +218,10 @@ class BD3LMTrainer(MDLMTrainer):
         )
 
         # === 6. Compute weighted cross-entropy ===
+        # Sanity check: ensure input_ids and labels match at valid positions
+        assert (input_ids[maskable_mask] == labels[maskable_mask]).all(), \
+            "Mismatch between input_ids and labels at valid positions"
+        
         token_nll = F.cross_entropy(
             logits.transpose(1, 2),  # [b, V, l]
             input_ids,               # [b, l]
@@ -235,9 +239,9 @@ class BD3LMTrainer(MDLMTrainer):
         if self.loss_norm_type == "batch":
             token_nll /= b
         elif self.loss_norm_type == "sequence":
-            token_nll /= maskable_mask.sum(-1, keepdim=True) * b
+            token_nll /= maskable_mask.sum(-1, keepdim=True).clamp_min(1) * b
         elif self.loss_norm_type == "token":
-            token_nll /= maskable_mask.sum()
+            token_nll /= maskable_mask.sum().clamp_min(1)
         else:
             raise ValueError("Invalid loss_norm_type.")
         loss = token_nll.sum()
