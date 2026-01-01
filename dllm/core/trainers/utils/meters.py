@@ -27,9 +27,7 @@ class BaseMetricsCallback(transformers.TrainerCallback):
       - otherwise       : f"{split}_" prefix (e.g., "eval_loss", "test_ppl")
 
     You provide:
-      - metrics_map:
-          * {name: Metric}            -> broadcast to all splits (deep-copied per split)
-          * {split: {name: Metric}}   -> per-split metrics
+      - metrics_map: {split: {name: torchmetrics.Metric}}   -> per-split metrics
     update():
       - calls metric.update(*args, **kwargs) by default
     """
@@ -38,7 +36,7 @@ class BaseMetricsCallback(transformers.TrainerCallback):
         self,
         trainer: "transformers.Trainer",
         splits: Iterable[str] = ("train", "eval"),
-        metrics_map: Optional[Dict[str, Any]] = None,
+        metrics_map: Optional[Dict[str, Dict[str, torchmetrics.Metric]]] = None,
         dtype: torch.dtype = torch.float64,
     ):
         self.trainer = trainer
@@ -48,21 +46,10 @@ class BaseMetricsCallback(transformers.TrainerCallback):
         # Create per-split independent metric dicts
         self._metrics: Dict[str, Dict[str, torchmetrics.Metric]] = {}
 
-        # Detect broadcast map: {name: Metric}
-        is_broadcast = len(metrics_map) > 0 and all(
-            isinstance(v, torchmetrics.Metric) for v in metrics_map.values()
-        )
-
         device = getattr(self.trainer.args, "device", torch.device("cpu"))
 
         for split in self.splits:
-            if is_broadcast:
-                # IMPORTANT: deepcopy so each split has independent state
-                mdict = {k: copy.deepcopy(v) for k, v in metrics_map.items()}
-            else:
-                mdict = {
-                    k: copy.deepcopy(v) for k, v in metrics_map.get(split, {}).items()
-                }
+            mdict = {k: copy.deepcopy(v) for k, v in metrics_map.get(split, {}).items()}
 
             # Configure dtype / device
             for m in mdict.values():
@@ -76,6 +63,10 @@ class BaseMetricsCallback(transformers.TrainerCallback):
                     pass
 
             self._metrics[split] = mdict
+
+            # reset once at construction time (so on_*_begin hooks aren't needed)
+            for m in mdict.values():
+                m.reset()
 
     # ---------- key naming ----------
 
@@ -115,7 +106,6 @@ class BaseMetricsCallback(transformers.TrainerCallback):
         # Sync across ranks (collectives) -- MUST run on all ranks
         if _ddp_initialized():
             for m in mdict.values():
-                # torchmetrics usually has sync/unsync; prefer sync if available
                 if hasattr(m, "sync"):
                     m.sync()
 
@@ -166,18 +156,6 @@ class BaseMetricsCallback(transformers.TrainerCallback):
                 f"[step {state.global_step} epoch {state.epoch}] "
                 + " ".join(f"{k}={v:.6f}" for k, v in logs.items())
             )
-
-    # ---------- HF callback hooks (optional defaults) ----------
-
-    def on_train_begin(self, args, state, control, **kwargs):
-        if "train" in self._metrics:
-            self.reset("train")
-        return control
-
-    def on_evaluate_begin(self, args, state, control, **kwargs):
-        if "eval" in self._metrics:
-            self.reset("eval")
-        return control
 
 
 class OnEvaluateMetricsCallback(BaseMetricsCallback):

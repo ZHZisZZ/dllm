@@ -49,7 +49,6 @@ class MDLMTrainer(transformers.Trainer):
         self.loss_norm_type = args.loss_norm_type
         self.right_shift_logits = args.right_shift_logits
 
-        # self.epoch_meter = EpochPPLMeter(self)
         self.meter = OnEvaluateMetricsCallback(
             trainer=self,
             splits=("train", "eval"),
