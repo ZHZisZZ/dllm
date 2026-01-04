@@ -39,7 +39,7 @@ class AppendEOSBlockWrapper(CollatorWrapper):
         return features
 
 
-def _bd3lm_attention_mask(b, h, q_idx, kv_idx, block_size=None, n=None):
+def _create_bd3lm_attention_mask(b, h, q_idx, kv_idx, block_size=None, n=None):
     """
     Constructs the specialized block diffusion attention mask for training
     composed of three masks:
@@ -155,7 +155,7 @@ class BD3LMTrainer(MDLMTrainer):
 
         # [TODO]: others like flash attention 2
         if self.accelerator.unwrap_model(model).config._attn_implementation == "sdpa":
-            attention_mask = _bd3lm_attention_mask(
+            attention_mask = _create_bd3lm_attention_mask(
                 b=None,
                 h=None,
                 q_idx=torch.arange(l * 2)[:, None],
@@ -174,7 +174,11 @@ class BD3LMTrainer(MDLMTrainer):
             from torch.nn.attention.flex_attention import create_block_mask
 
             attention_mask = create_block_mask(
-                partial(_bd3lm_attention_mask, block_size=self.block_size, n=l),
+                partial(
+                    _create_bd3lm_attention_mask, 
+                    block_size=self.block_size, 
+                    n=l
+                ),
                 B=None,
                 H=None,
                 Q_LEN=l * 2,
@@ -198,26 +202,14 @@ class BD3LMTrainer(MDLMTrainer):
 
         logits = logits[:, :l]  # we only care about the first half for computing loss
 
-        # === 4. Handle degenerate cases (no tokens masked) ===
-        # If no positions were masked, return a zero loss to keep gradients valid.
-        # This step is necessary for Deepspeed Zero-{2,3}
-        if not masked_mask.any():
-            zero = logits.sum() * 0.0  # scalar, grad-safe
-            self.meter.update(
-                split="train" if model.training else "eval",
-                value=torch.zeros_like(maskable_mask, dtype=logits.dtype),
-                weight=maskable_mask.to(dtype=logits.dtype).detach(),
-            )
-            return (zero, outputs) if return_outputs else zero
-
-        # === 5. Compute per-token loss weights ===
+        # === 4. Compute per-token loss weights ===
         # Depending on the configuration, weights may depend on timestep t
         # (e.g., scheduler-based) or be uniform (ones).
         loss_weights = self._compute_loss_weights(
             t=t, inputs=inputs, masked_mask=masked_mask
         )
 
-        # === 6. Compute weighted cross-entropy ===
+        # === 5. Compute weighted cross-entropy ===
         # Sanity check: ensure input_ids and labels match at valid positions
         assert (
             input_ids[maskable_mask] == labels[maskable_mask]
@@ -236,16 +228,16 @@ class BD3LMTrainer(MDLMTrainer):
             weight=maskable_mask.to(dtype=logits.dtype).detach(),
         )
 
-        # === 7. Normalize loss ===
-        if self.loss_norm_type == "batch":
-            token_nll /= b
+        # === 6. Normalize loss ===
+        if self.loss_norm_type == "token":
+            token_nll /= maskable_mask.sum().clamp_min(1)
         elif self.loss_norm_type == "sequence":
             token_nll /= maskable_mask.sum(-1, keepdim=True).clamp_min(1) * b
-        elif self.loss_norm_type == "token":
-            token_nll /= maskable_mask.sum().clamp_min(1)
+        elif self.loss_norm_type == "batch":
+            token_nll /= b
         else:
             raise ValueError("Invalid loss_norm_type.")
         loss = token_nll.sum()
 
-        # === 8. Return final loss (and optionally model outputs) ===
+        # === 7. Return final loss (and optionally model outputs) ===
         return (loss, outputs) if return_outputs else loss

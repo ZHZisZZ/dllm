@@ -19,7 +19,7 @@ import transformers
 from dllm.core.schedulers import BaseAlphaScheduler, LinearAlphaScheduler
 from dllm.utils.configs import TrainingArguments
 from dllm.utils.data import prepend_bos
-from .utils import NLLMetric, PerplexityMetric, OnEvaluateMetricsCallback
+from .utils import NLLMetric, PPLMetric, OnEvaluateMetricsCallback
 
 
 class MDLMTrainer(transformers.Trainer):
@@ -28,7 +28,7 @@ class MDLMTrainer(transformers.Trainer):
     class MDLMConfig(TrainingArguments):
         time_epsilon: float = 1e-3
         loss_weight_type: str = "scheduler"  # "scheduler", "uniform"
-        loss_norm_type: str = "sequence"  # "batch", "sequence", "token"
+        loss_norm_type: str = "token"  # "batch", "sequence", "token"
         right_shift_logits: bool = False
 
     def __init__(
@@ -52,10 +52,7 @@ class MDLMTrainer(transformers.Trainer):
         self.meter = OnEvaluateMetricsCallback(
             trainer=self,
             splits=("train", "eval"),
-            metrics_map={
-                "diff_nll": NLLMetric(),
-                "diff_ppl": PerplexityMetric(),
-            },
+            metrics={"nll": NLLMetric(), "ppl": PPLMetric()},
         )
         self.add_callback(self.meter)
 
@@ -173,26 +170,14 @@ class MDLMTrainer(transformers.Trainer):
         outputs = self._postprocess_outputs(outputs)
         logits = outputs.logits
 
-        # === 4. Handle degenerate cases (no tokens masked) ===
-        # If no positions were masked, return a zero loss to keep gradients valid.
-        # This step is necessary for Deepspeed Zero-{2,3}
-        if not masked_mask.any():
-            zero = logits.sum() * 0.0  # scalar, grad-safe
-            self.meter.update(
-                split="train" if model.training else "eval",
-                value=torch.zeros_like(maskable_mask, dtype=logits.dtype),
-                weight=maskable_mask.to(dtype=logits.dtype).detach(),
-            )
-            return (zero, outputs) if return_outputs else zero
-
-        # === 5. Compute per-token loss weights ===
+        # === 4. Compute per-token loss weights ===
         # Depending on the configuration, weights may depend on timestep t
         # (e.g., scheduler-based) or be uniform (ones).
         loss_weights = self._compute_loss_weights(
             t=t, inputs=inputs, masked_mask=masked_mask
         )
 
-        # === 6. Compute weighted cross-entropy ===
+        # === 5. Compute weighted cross-entropy ===
         # Sanity check: ensure input_ids and labels match at valid positions
         assert (
             input_ids[maskable_mask] == labels[maskable_mask]
@@ -211,16 +196,16 @@ class MDLMTrainer(transformers.Trainer):
             weight=maskable_mask.to(dtype=logits.dtype).detach(),
         )
 
-        # === 7. Normalize loss ===
-        if self.loss_norm_type == "batch":
-            token_nll /= b
+        # === 6. Normalize loss ===
+        if self.loss_norm_type == "token":
+            token_nll /= maskable_mask.sum().clamp_min(1)
         elif self.loss_norm_type == "sequence":
             token_nll /= maskable_mask.sum(-1, keepdim=True).clamp_min(1) * b
-        elif self.loss_norm_type == "token":
-            token_nll /= maskable_mask.sum().clamp_min(1)
+        elif self.loss_norm_type == "batch":
+            token_nll /= b
         else:
             raise ValueError("Invalid loss_norm_type.")
         loss = token_nll.sum()
 
-        # === 8. Return final loss (and optionally model outputs) ===
+        # === 7. Return final loss (and optionally model outputs) ===
         return (loss, outputs) if return_outputs else loss

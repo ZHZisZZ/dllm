@@ -654,11 +654,11 @@ def test_a2d_fullmask_future_affects_past(model_name_or_path, config_cls, model_
         ),
     ],
 )
-def test_bd3lm_staircase_attention_kvcache_equivalence(
+def test_bd3lm_attention_kvcache_equivalence(
     model_name_or_path, config_cls, model_cls
 ):
     """
-    Verify that staircase attention produces identical logits when run:
+    Verify that attention produces identical logits when run:
         (A) in one full 8-token forward pass
         (B) in two incremental passes (4 tokens → KV cache → 4 tokens)
     """
@@ -697,7 +697,7 @@ def test_bd3lm_staircase_attention_kvcache_equivalence(
     x_second = x_full[:, block_size:seq_len]  # [1, 4]
 
     # ------------------------------
-    # 3. Build staircase mask + positions for the full sequence
+    # 3. Build mask + positions for the full sequence
     # ------------------------------
     attn_full, pos_full = _prepare_for_sampling(
         x_full, block_size=block_size, pad_token_id=pad_token_id
@@ -808,7 +808,7 @@ def test_bd3lm_concat_equivalence_when_noised_equals_input(
     NOTE: We set block_size == seq_len so x_t tokens attend only within x_t (single block),
           making the first-half computation equivalent to a standard full-attention forward.
     """
-    from dllm.core.trainers.bd3lm import _bd3lm_attention_mask
+    from dllm.core.trainers.bd3lm import _create_bd3lm_attention_mask
 
     torch.manual_seed(0)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -858,7 +858,7 @@ def test_bd3lm_concat_equivalence_when_noised_equals_input(
     pos_cat = torch.cat([pos, pos], dim=1)  # [1, 2L]
 
     L2 = 2 * seq_len
-    attn_bd = _bd3lm_attention_mask(
+    attn_bd = _create_bd3lm_attention_mask(
         b=None,
         h=None,
         q_idx=torch.arange(L2, device=device)[:, None],

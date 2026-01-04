@@ -19,7 +19,7 @@ def _prepare_for_sampling(
     pad_token_id: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
-    Build a block-wise bidirectional 'staircase' attention mask and position_ids
+    Build a block-wise bidirectional attention mask and position_ids
     over the entire sequence (prompt + generated).
 
     Padding tokens (pad_token_id) are excluded from attention: they are neither
@@ -68,7 +68,7 @@ def _prepare_for_sampling(
         torch.full_like(block_ids, -1),
     )
 
-    # Build [B, 1, T, T] staircase mask
+    # Build [B, 1, T, T] mask
     bid_q = block_ids.view(B, 1, T, 1)  # query
     bid_k = block_ids.view(B, 1, 1, T)  # key
 
@@ -164,7 +164,7 @@ class BD3LMSampler(BaseSampler):
         """
         Generate text using block diffusion language modeling.
 
-        Generates text block-by-block with a staircase attention pattern, where each
+        Generates text block-by-block with an attention pattern, where each
         block undergoes multiple diffusion steps before moving to the next block.
 
         Args:
@@ -355,7 +355,7 @@ class BD3LMSampler(BaseSampler):
             )
             effective_steps = num_transfer_tokens.size(1)
 
-            # Full staircase attention mask + pos for prefix + current block
+            # Full attention mask + pos for prefix + current block
             full_attention_mask, full_position_ids = _prepare_for_sampling(
                 x=x,
                 block_size=block_size,

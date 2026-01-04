@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from typing import Any, Dict, Iterable, Optional
+from typing import Dict, Iterable, Mapping, Optional, Union
 import copy
 
 import torch
@@ -8,120 +6,66 @@ import transformers
 import torchmetrics
 
 
-def _ddp_initialized() -> bool:
-    return torch.distributed.is_available() and torch.distributed.is_initialized()
-
-
 class BaseMetricsCallback(transformers.TrainerCallback):
     """
-    Generic split-aware metric accumulator for HF Trainer.
+    Split-aware torchmetrics callback.
 
-    Fixes vs old version:
-      1) Per-split metrics are independent (deep-copied) to avoid train/eval contamination.
-      2) DDP-safe: sync/compute/reset run on ALL ranks; only rank0 logs/prints (no deadlock).
-      3) Metrics are moved to trainer device (avoids CPU/GPU mismatch).
-      4) Optional dtype set if metric supports it.
+    Provide metrics via:
+      - metrics=MetricCollection(...)
+      - metrics={"name": Metric(), ...}
 
-    Smart key prefixing:
-      - split == "train": no prefix (e.g., "loss", "ppl")
-      - otherwise       : f"{split}_" prefix (e.g., "eval_loss", "test_ppl")
+    Metrics are cloned (or deep-copied) per split, moved to accelerator.device,
+    and reset on init.
 
-    You provide:
-      - metrics_map: {split: {name: torchmetrics.Metric}}   -> per-split metrics
-    update():
-      - calls metric.update(*args, **kwargs) by default
+    Finalize:
+      - compute+reset on *all* ranks
+      - log/print only on main process
     """
 
     def __init__(
         self,
         trainer: "transformers.Trainer",
         splits: Iterable[str] = ("train", "eval"),
-        metrics_map: Optional[Dict[str, Dict[str, torchmetrics.Metric]]] = None,
-        dtype: torch.dtype = torch.float64,
+        metrics: torchmetrics.MetricCollection | dict[str, torchmetrics.Metric] = None,
     ):
+        super().__init__()
         self.trainer = trainer
+        self.accelerator = trainer.accelerator
         self.splits = tuple(splits)
-        metrics_map = metrics_map or {}
 
-        # Create per-split independent metric dicts
-        self._metrics: Dict[str, Dict[str, torchmetrics.Metric]] = {}
+        if isinstance(metrics, dict):
+            metrics = torchmetrics.MetricCollection(dict(metrics))
 
-        device = getattr(self.trainer.args, "device", torch.device("cpu"))
+        assert isinstance(metrics, torchmetrics.MetricCollection)
 
-        for split in self.splits:
-            mdict = {k: copy.deepcopy(v) for k, v in metrics_map.get(split, {}).items()}
+        self._m: dict[str, torchmetrics.MetricCollection] = {}
+        device = self.accelerator.device
 
-            # Configure dtype / device
-            for m in mdict.values():
-                # Many torchmetrics ignore this, but keep your hook
-                if hasattr(m, "set_dtype"):
-                    m.set_dtype(dtype)
-                # Ensure state buffers are on the right device
-                try:
-                    m.to(device)
-                except Exception:
-                    pass
-
-            self._metrics[split] = mdict
-
-            # reset once at construction time (so on_*_begin hooks aren't needed)
-            for m in mdict.values():
-                m.reset()
-
-    # ---------- key naming ----------
+        for s in self.splits:
+            self._m[s] = copy.deepcopy(metrics)
+            self._m[s].to(device)
+            self._m[s].reset()
 
     @staticmethod
     def key_for(split: str, name: str) -> str:
         return name if split == "train" else f"{split}_{name}"
 
-    # ---------- lifecycle ----------
-
-    def reset(self, split: str) -> None:
-        for m in self._metrics[split].values():
-            m.reset()
-
     @torch.no_grad()
     def update(self, split: str, *args, **kwargs) -> None:
-        for m in self._metrics[split].values():
-            m.update(*args, **kwargs)
+        self._m[split].update(*args, **kwargs)
 
     @torch.no_grad()
-    def finalize(self, split: str) -> Dict[str, float]:
-        """
-        DDP-safe finalize:
-          - Must be called on ALL ranks (because sync uses collectives).
-          - Returns local dict of python floats.
-          - Resets split metrics.
-        """
-        mdict = self._metrics[split]
+    def finalize(self, split: str) -> dict[str, float]:
+        mc = self._m[split]
+        mc.to(self.accelerator.device)
 
-        # Make sure metrics live on current device (in case trainer device changes)
-        device = getattr(self.trainer.args, "device", torch.device("cpu"))
-        for m in mdict.values():
-            try:
-                m.to(device)
-            except Exception:
-                pass
+        computed = mc.compute()  # torchmetrics will sync here if metric is configured to do so
+        mc.reset()
 
-        # Sync across ranks (collectives) -- MUST run on all ranks
-        if _ddp_initialized():
-            for m in mdict.values():
-                if hasattr(m, "sync"):
-                    m.sync()
-
-        out: Dict[str, float] = {}
-        for name, m in mdict.items():
-            v = m.compute()
-            if isinstance(v, torch.Tensor):
-                if v.numel() == 0:
-                    continue
-                v = v.detach()
-                v = v.item() if v.numel() == 1 else v.double().mean().cpu().item()
-            out[name] = float(v)
-
-        # IMPORTANT: reset after compute so next window starts clean
-        self.reset(split)
-        return out
+        return {
+            k: float(v.item()) if isinstance(v, torch.Tensor) else float(v)
+            for k, v in computed.items()
+        }
 
     @torch.no_grad()
     def log_and_print(
@@ -129,26 +73,18 @@ class BaseMetricsCallback(transformers.TrainerCallback):
         state: transformers.TrainerState,
         splits: Iterable[str] | None = None,
     ) -> None:
-        """
-        DDP-safe:
-          - finalize() (and thus sync/compute/reset) runs on ALL ranks
-          - only rank0 logs/prints
-        """
         splits = self.splits if splits is None else tuple(splits)
 
-        # All ranks finalize (avoid DDP deadlock)
-        all_vals: Dict[str, Dict[str, float]] = {}
-        for split in splits:
-            if split in self._metrics:
-                all_vals[split] = self.finalize(split)
+        # All ranks finalize to make metric sync/compute safe.
+        vals = {s: self.finalize(s) for s in splits}
 
-        # Only rank0 logs/prints
-        if not self.trainer.is_world_process_zero():
+        if not self.accelerator.is_main_process:
             return
 
-        logs: Dict[str, float] = {}
-        for split, vals in all_vals.items():
-            logs.update({self.key_for(split, k): v for k, v in vals.items()})
+        logs: dict[str, float] = {}
+        for s, d in vals.items():
+            for k, v in d.items():
+                logs[self.key_for(s, k)] = v
 
         if logs:
             self.trainer.log(logs)
@@ -160,6 +96,5 @@ class BaseMetricsCallback(transformers.TrainerCallback):
 
 class OnEvaluateMetricsCallback(BaseMetricsCallback):
     def on_evaluate(self, args, state, control, metrics=None, **kwargs):
-        # Log both train + eval by default (matches your previous behavior).
         self.log_and_print(state, splits=("train", "eval"))
         return control
