@@ -18,12 +18,12 @@ Slurm users
 - 1 Node, 8 GPUs (ZeRO-2):
     sbatch --gres=gpu:1 scripts/train.slurm.sh \
         --accelerate_config "zero2" \
-        --script_path "examples/bd3lm/mdlm/pt.py"
+        --script_path "examples/a2d/bd3lm/pt.py"
 
 - 2 Nodes, 16 GPUs (ZeRO-2):
     sbatch --nodes=2 --gres=gpu:8 scripts/train.slurm.sh \
         --accelerate_config "zero2" \
-        --script_path "examples/bd3lm/mdlm/pt.py"
+        --script_path "examples/a2d/bd3lm/pt.py"
 """
 
 import functools

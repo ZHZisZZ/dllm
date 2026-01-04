@@ -56,7 +56,7 @@ class DataArguments(dllm.utils.DataArguments):
 
 @dataclass
 class TrainingArguments(dllm.core.trainers.BD3LMTrainer.BD3LMConfig):
-    output_dir: str = "models/a2d/Qwen3-0.6B/mdlm/alpaca"
+    output_dir: str = "models/a2d/Qwen3-0.6B/bd3lm/alpaca"
     group_by_length: bool = True
     num_train_epochs: int = 20
     learning_rate: float = 1e-4
