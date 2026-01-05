@@ -52,7 +52,7 @@ class MDLMTrainer(transformers.Trainer):
         self.meter = OnEvaluateMetricsCallback(
             trainer=self,
             splits=("train", "eval"),
-            metrics={"nll": NLLMetric(), "ppl": PPLMetric()},
+            metrics={"diff_nll": NLLMetric(), "diff_ppl": PPLMetric()},
         )
         self.add_callback(self.meter)
 
