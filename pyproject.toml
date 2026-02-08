@@ -34,10 +34,6 @@ optional = [
     "vllm==0.8.5.post1",
     "flash-attn==2.8.3",
 ]
-rl = [
-    "trl==0.26.0",
-    "math_verify==0.8.0",
-]
 
 [tool.black]
 line-length = 88

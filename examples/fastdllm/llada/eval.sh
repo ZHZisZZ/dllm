@@ -36,106 +36,109 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ===== Conditional Configurations =====
+# Use --model llada for dllm/pipelines/llada/eval.py; --model fastdllm_llada for dllm/pipelines/fastdllm/llada/eval.py
 if [ "$instruct" = "True" ]; then
     echo ">>> Running in INSTRUCT mode"
-    common_args="--model fastdllm_llada --apply_chat_template"
+    llada_args="--model llada --apply_chat_template"
+    fastdllm_args="--model fastdllm_llada --apply_chat_template"
 else
     echo ">>> Running in BASE mode"
-    common_args="--model fastdllm_llada"
+    llada_args="--model llada"
+    fastdllm_args="--model fastdllm_llada"
 fi
 
 # =======================
 # GSM8K Task Evaluation
 # =======================
 
-# Baseline (29.35s/it)
+# Baseline (llada/eval.py, --model llada)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/llada/eval.py \
-    --tasks gsm8k --num_fewshot 5 ${common_args} \
+    --tasks gsm8k --num_fewshot 5 ${llada_args} \
     --model_args "pretrained=${model_name_or_path},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]"
 
 # Parallel threshold (12.60s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks gsm8k --num_fewshot 5 ${common_args} \
+    --tasks gsm8k --num_fewshot 5 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=none,threshold=${threshold},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]"
 
 # Prefix cache (9.25s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks gsm8k --num_fewshot 5 ${common_args} \
+    --tasks gsm8k --num_fewshot 5 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=prefix,max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]"
 
-# Dual cache (9.53s/it))
+# Dual cache (9.53s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks gsm8k --num_fewshot 5 ${common_args} \
+    --tasks gsm8k --num_fewshot 5 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=dual,max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]"
     
 # Prefix cache + Parallel threshold (4.39s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks gsm8k --num_fewshot 5 ${common_args} \
+    --tasks gsm8k --num_fewshot 5 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=prefix,threshold=${threshold},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]"
 
-# Dual cache + Parallel threshold(4.83s/it)
+# Dual cache + Parallel threshold (4.83s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks gsm8k --num_fewshot 5 ${common_args} \
+    --tasks gsm8k --num_fewshot 5 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=dual,threshold=${threshold},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]"
 
 # Prefix cache + Parallel factor(3.68s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks gsm8k --num_fewshot 5 ${common_args} \
+    --tasks gsm8k --num_fewshot 5 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=prefix,factor=${factor},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]"
 
-# Dual cache + Parallel factor(3.78s/it)
+# Dual cache + Parallel factor (3.78s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks gsm8k --num_fewshot 5 ${common_args} \
+    --tasks gsm8k --num_fewshot 5 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=dual,factor=${factor},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]"
 
 # ===========================
 # Humaneval Task Evaluation
 # ===========================
 
-# Baseline (12.03s/it)
+# Baseline (llada/eval.py, --model llada)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/llada/eval.py \
-    --tasks humaneval_instruct_llada --num_fewshot 0 ${common_args} \
+    --tasks humaneval_instruct_llada --num_fewshot 0 ${llada_args} \
     --model_args "pretrained=${model_name_or_path},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]" \
     --confirm_run_unsafe_code
 
 # Parallel threshold (4.20s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks humaneval_instruct_llada --num_fewshot 0 ${common_args} \
+    --tasks humaneval_instruct_llada --num_fewshot 0 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=none,threshold=${threshold},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]" \
     --confirm_run_unsafe_code
 
-# Prefix cache + Parallel threshold (2.95/it)
+# Prefix cache + Parallel threshold (2.95s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks humaneval_instruct_llada --num_fewshot 0 ${common_args} \
+    --tasks humaneval_instruct_llada --num_fewshot 0 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=prefix,threshold=${threshold},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]" \
     --confirm_run_unsafe_code
 
-# Prefix cache + Parallel factor (2.39)
+# Prefix cache + Parallel factor (2.39s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks humaneval_instruct_llada --num_fewshot 0 ${common_args} \
+    --tasks humaneval_instruct_llada --num_fewshot 0 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=prefix,factor=${factor},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]" \
     --confirm_run_unsafe_code
 
 # Prefix cache (7.33s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks humaneval_instruct_llada --num_fewshot 0 ${common_args} \
+    --tasks humaneval_instruct_llada --num_fewshot 0 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=prefix,max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]" \
     --confirm_run_unsafe_code
 
 # Dual cache (9.19s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks humaneval_instruct_llada --num_fewshot 0 ${common_args} \
+    --tasks humaneval_instruct_llada --num_fewshot 0 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=dual,max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]" \
     --confirm_run_unsafe_code
   
 # Dual cache + Parallel threshold (3.90s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks humaneval_instruct_llada --num_fewshot 0 ${common_args} \
+    --tasks humaneval_instruct_llada --num_fewshot 0 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=dual,threshold=${threshold},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]" \
     --confirm_run_unsafe_code
 
 # Dual cache + Parallel factor (3.15s/it)
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/fastdllm/llada/eval.py \
-    --tasks humaneval_instruct_llada --num_fewshot 0 ${common_args} \
+    --tasks humaneval_instruct_llada --num_fewshot 0 ${fastdllm_args} \
     --model_args "pretrained=${model_name_or_path},use_cache=dual,factor=${factor},max_new_tokens=${max_new_tokens},steps=${max_new_tokens},block_size=32,suppress_tokens=[],begin_suppress_tokens=[126081;126348]" \
     --confirm_run_unsafe_code

@@ -29,7 +29,7 @@ common_args="--model bert --apply_chat_template"  # BERT model uses chat templat
 # =======================
 # BERT Chat Tasks
 # =======================
-
+# Use dllm/pipelines/bert/eval.py and --model bert
 accelerate launch --num_processes "${num_gpu}" dllm/pipelines/bert/eval.py \
     --tasks gsm8k_bert --num_fewshot 8 ${common_args} \
     --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32"

@@ -68,6 +68,7 @@ class DreamSamplerConfig(SamplerConfig):
     top_k: int = 50
     stochastic_transfer: bool = False
     right_shift_logits: bool = True
+    cfg_scale: float = 0.0
 
 
 @dataclass
@@ -75,7 +76,7 @@ class DreamSampler(BaseSampler):
     @torch.no_grad()
     def sample(
         self,
-        inputs: list[torch.Tensor, list],
+        inputs: list[torch.Tensor] | list[list[int]],
         config: DreamSamplerConfig | None = None,
         generation_tokens_hook_func=lambda step, x, logits: x,
         generation_logits_hook_func=lambda step, x, logits: logits,
@@ -105,6 +106,7 @@ class DreamSampler(BaseSampler):
         # generation_logits_hook_func = kwargs.get("generation_logits_hook_func", config.generation_logits_hook_func)
         return_dict = kwargs.get("return_dict", config.return_dict)
         right_shift_logits = kwargs.get("right_shift_logits", config.right_shift_logits)
+        cfg_scale = kwargs.get("cfg_scale", config.cfg_scale)
 
         # --- Initialization ---
         mask_token_id = self.tokenizer.mask_token_id
@@ -153,13 +155,30 @@ class DreamSampler(BaseSampler):
         )
         effective_steps = num_transfer_tokens_list.size(1)
 
+        # For CFG: unconditional input masks out only the prompt (not step-wise revealed tokens)
+        prompt_index = attention_mask.bool() & (
+            torch.arange(T, device=x.device).unsqueeze(0) < T - max_new_tokens
+        )
+
         # --- Iterative refinement ---
         x = generation_tokens_hook_func(None, x, None)
         histories = [x.clone()] if return_dict else None
         for i in range(effective_steps):
             mask_index = x == mask_token_id
 
-            logits = self.model(x, attention_mask, pos_id).logits
+            if cfg_scale > 0.0:
+                un_x = x.clone()
+                un_x[prompt_index] = mask_token_id
+                x_ = torch.cat([x, un_x], dim=0)
+                attention_mask_cfg = torch.cat([attention_mask, attention_mask], dim=0)
+                pos_id_cfg = (
+                    torch.cat([pos_id, pos_id], dim=0) if pos_id is not None else None
+                )
+                logits = self.model(x_, attention_mask_cfg, pos_id_cfg).logits
+                logits, un_logits = torch.chunk(logits, 2, dim=0)
+                logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
+            else:
+                logits = self.model(x, attention_mask, pos_id).logits
 
             if right_shift_logits:
                 logits = torch.cat([logits[:, :1], logits[:, :-1]], dim=1)
@@ -226,7 +245,7 @@ class DreamSampler(BaseSampler):
     @torch.no_grad()
     def infill(
         self,
-        inputs: list[torch.Tensor, list],
+        inputs: list[torch.Tensor] | list[list[int]],
         config,
         generation_tokens_hook_func=lambda step, x, logits: x,
         generation_logits_hook_func=lambda step, x, logits: logits,
@@ -291,7 +310,7 @@ class DreamSampler(BaseSampler):
         steps = kwargs.get("steps", config.steps)
         eps = kwargs.get("eps", config.eps)
         alg = kwargs.get("alg", config.alg)
-        alg_temp = kwargs.get("eps", config.alg_temp)
+        alg_temp = kwargs.get("alg_temp", config.alg_temp)
         temperature = kwargs.get("temperature", config.temperature)
         top_p = kwargs.get("top_p", config.top_p)
         top_k = kwargs.get("top_k", config.top_k)

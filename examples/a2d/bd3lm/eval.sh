@@ -10,6 +10,7 @@ export NCCL_DEBUG=warn                      # Show NCCL warnings for better diag
 export TORCH_DISTRIBUTED_DEBUG=DETAIL       # Provide detailed logging for PyTorch distributed debugging
 
 # ===== Basic Settings =====
+# Use HF hub path for portability; override with --model_name_or_path if using a local path.
 model_name_or_path="dllm-collection/Qwen3-0.6B-diffusion-bd3lm-v0.1"
 num_gpu=1
 model_type="normal"   # normal | coder
@@ -30,8 +31,9 @@ done
 echo ">>> model_type: ${model_type}"
 echo ">>> model_name_or_path: ${model_name_or_path}"
 
-# ===== Common arguments =====
-common_args="--model bd3lm --apply_chat_template"
+# ===== Common arguments: use dllm/pipelines/a2d/eval.py and --model a2d_bd3lm =====
+common_args="--model a2d_bd3lm --apply_chat_template"
+eval_script="dllm/pipelines/a2d/eval.py"
 
 # =========================================================
 # If coder model → Only run HumanEval + MBPP
@@ -40,14 +42,14 @@ common_args="--model bd3lm --apply_chat_template"
 if [[ "$model_type" == "coder" ]]; then
     echo ">>> Running coder-model benchmark suite (HumanEval + MBPP only)"
 
-    accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+    accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
         --tasks humaneval_instruct --num_fewshot 0 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg=0.0" \
+        --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg_scale=0.0" \
         --confirm_run_unsafe_code
 
-    accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+    accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
         --tasks mbpp_instruct --num_fewshot 3 ${common_args} \
-        --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg=0.0" \
+        --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg_scale=0.0" \
         --confirm_run_unsafe_code
 
     exit 0
@@ -57,36 +59,36 @@ fi
 # Normal model → Run all tasks (full list)
 # =========================================================
 
-accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
     --tasks mmlu_generative_dream --num_fewshot 0 ${common_args} \
-    --model_args "pretrained=${model_name_or_path},max_new_tokens=3,steps=3,block_size=32,cfg=0.0"
+    --model_args "pretrained=${model_name_or_path},max_new_tokens=3,steps=3,block_size=32,cfg_scale=0.0"
 
-accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
     --tasks mmlu_pro --num_fewshot 0 ${common_args} \
-    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg=0.0"
+    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg_scale=0.0"
 
-accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
     --tasks hellaswag_gen --num_fewshot 0 ${common_args} \
-    --model_args "pretrained=${model_name_or_path},max_new_tokens=3,steps=3,block_size=32,cfg=0.0"
+    --model_args "pretrained=${model_name_or_path},max_new_tokens=3,steps=3,block_size=32,cfg_scale=0.0"
 
-accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
     --tasks gsm8k_cot --num_fewshot 5 ${common_args} \
-    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg=0.0"
+    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg_scale=0.0"
 
-accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
     --tasks bbh --num_fewshot 3 ${common_args} \
-    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg=0.0"
+    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg_scale=0.0"
 
-accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
     --tasks minerva_math --num_fewshot 4 ${common_args} \
-    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg=0.0"
+    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg_scale=0.0"
 
-accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
     --tasks humaneval_instruct --num_fewshot 0 ${common_args} \
-    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg=0.0" \
+    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg_scale=0.0" \
     --confirm_run_unsafe_code
 
-accelerate launch --num_processes "${num_gpu}" dllm/pipelines/a2d/eval.py \
+accelerate launch --num_processes "${num_gpu}" "${eval_script}" \
     --tasks mbpp_instruct --num_fewshot 3 ${common_args} \
-    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg=0.0" \
+    --model_args "pretrained=${model_name_or_path},max_new_tokens=256,steps=256,block_size=32,cfg_scale=0.0" \
     --confirm_run_unsafe_code
