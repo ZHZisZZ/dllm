@@ -11,15 +11,19 @@ accelerate launch \
 
 import logging
 from dataclasses import dataclass
+from types import SimpleNamespace
 
+import accelerate
 import torch
 import torch.nn.functional as F
 from lm_eval.__main__ import cli_evaluate
 from lm_eval.api.instance import Instance
+from lm_eval.api.model import LM
 from lm_eval.api.registry import register_model
+from lm_eval.models.utils import get_dtype
 from tqdm import tqdm
 
-from dllm.core.eval import BaseEvalHarness
+import dllm
 from dllm.pipelines.dream import DreamSampler, DreamSamplerConfig
 
 eval_logger = logging.getLogger(__name__)
@@ -43,33 +47,38 @@ class DreamEvalConfig(DreamSamplerConfig):
     nll_type: str = "mc"
     log_type: str = "ftb"
     mc_num: int = 128
-    cfg_scale: float = 0.0
+    classifier_free_guidance: float = 1.0
     sampling_eps: float = 1e-3
     escape_until: bool = False
-    resolve_pretrained_with_base_env: bool = True
 
 
 @register_model("dream")
-class DreamEvalHarness(BaseEvalHarness):
+class DreamEvalHarness(LM):
     def __init__(
         self,
         config: DreamEvalConfig | None = None,
         **kwargs,
     ) -> None:
+        super().__init__()
+
+        # Initialize config if not provided
         if config is None:
             config = DreamEvalConfig()
 
-        super().__init__(config=config, **kwargs)
-
-        # Dream-specific: pull from config / kwargs
+        # Pull args from config, allow kwargs to override
+        pretrained = kwargs.get("pretrained", config.pretrained)
         batch_size = kwargs.get("batch_size", config.batch_size)
+        device = kwargs.get("device", config.device)
+        dtype = kwargs.get("dtype", config.dtype)
         max_length = kwargs.get("max_length", config.max_length)
         add_bos_token = kwargs.get("add_bos_token", config.add_bos_token)
         nll_type = kwargs.get("nll_type", config.nll_type)
         log_type = kwargs.get("log_type", config.log_type)
         mc_num = kwargs.get("mc_num", config.mc_num)
         max_new_tokens = kwargs.get("max_new_tokens", config.max_new_tokens)
-        cfg_scale = kwargs.get("cfg_scale", config.cfg_scale)
+        classifier_free_guidance = kwargs.get(
+            "classifier_free_guidance", config.classifier_free_guidance
+        )
         sampling_eps = kwargs.get("sampling_eps", config.sampling_eps)
         steps = kwargs.get("steps", config.steps)
         temperature = kwargs.get("temperature", config.temperature)
@@ -79,6 +88,43 @@ class DreamEvalHarness(BaseEvalHarness):
         alg_temp = kwargs.get("alg_temp", config.alg_temp)
         escape_until = kwargs.get("escape_until", config.escape_until)
 
+        accelerator = accelerate.Accelerator()
+
+        # Get GLOBAL rank from torch.distributed (not accelerator)
+        if torch.distributed.is_initialized():
+            self._rank = torch.distributed.get_rank()  # ← GLOBAL rank (0-15)
+            self._world_size = (
+                torch.distributed.get_world_size()
+            )  # ← GLOBAL world size (16)
+        else:
+            self._rank = 0
+            self._world_size = 1
+
+        # Use accelerator for device placement
+        pretrained = dllm.utils.resolve_with_base_env(pretrained, "BASE_MODELS_DIR")
+        self.model = dllm.utils.get_model(
+            SimpleNamespace(model_name_or_path=pretrained, dtype=get_dtype(dtype))
+        )
+        self.model.eval()
+
+        if accelerator.num_processes > 1:
+            # Let accelerator handle device placement
+            self.model = accelerator.prepare(self.model)
+            self.device = (
+                accelerator.device
+            )  # ← Accelerator figures out local device correctly
+            self.accelerator = accelerator
+        else:
+            # Single GPU
+            self.model = self.model.to(device)
+            self.device = torch.device(device)
+            self.accelerator = None
+
+        self.tokenizer = dllm.utils.get_tokenizer(
+            SimpleNamespace(model_name_or_path=pretrained, model=self.model)
+        )
+
+        # sampling params
         self.mask_id = self.tokenizer.mask_token_id
         self.max_length = max_length
         self.add_bos_token = add_bos_token
@@ -91,12 +137,21 @@ class DreamEvalHarness(BaseEvalHarness):
         self.alg = alg
         self.alg_temp = alg_temp
         self.escape_until = escape_until
+
+        # loglikelihood params
         self.nll_type = nll_type
         self.log_type = log_type
         self.mc_num = mc_num
-        self.cfg_scale = float(cfg_scale)
+        self.classifier_free_guidance = classifier_free_guidance
         self.sampling_eps = sampling_eps
-        self.sampler = DreamSampler(model=self.model, tokenizer=self.tokenizer)
+
+    @property
+    def rank(self):
+        return self._rank
+
+    @property
+    def world_size(self):
+        return self._world_size
 
     def tok_decode(
         self, tokens: torch.Tensor | list[int], skip_special_tokens: bool = True
@@ -108,23 +163,57 @@ class DreamEvalHarness(BaseEvalHarness):
             text, return_tensors="pt", add_special_tokens=add_special_tokens
         ).input_ids
 
+    def apply_chat_template(
+        self, chat_history: list[dict[str, str]], add_generation_prompt: bool = True
+    ) -> str:
+        """
+        Method to apply a chat template to a list of chat history between user and model.
+        """
+        chat_templated = self.tokenizer.apply_chat_template(
+            chat_history,
+            tokenize=False,
+            add_generation_prompt=add_generation_prompt,
+            continue_final_message=not add_generation_prompt,
+        )
+        return chat_templated
+
+    @property
+    def tokenizer_name(self) -> str:
+        return self.tokenizer.name_or_path.replace("/", "__")
+
     def generate_until(
         self, requests: list[Instance], disable_tqdm: bool = False
     ) -> list[str]:
+        """Generate greedily until a stopping sequence
+
+        :param requests: list[Instance]
+            A list of Instance objects with property `args` which returns a tuple (context, gen_kwargs).
+            context: str
+                Context string
+            gen_kwargs: dict
+                A dictionary of keyword arguments to pass to the generation function e.g. top_k, until, etc.
+        :return: list[str]
+            A list of model generated continuations.
+            continuation: str
+                The generated continuation.
+        """
         res = []
         pbar = tqdm(
             total=len(requests),
             disable=(disable_tqdm or (self.rank != 0)),
             desc="Running generate_until requests",
         )
+        sampler = DreamSampler(model=self.model, tokenizer=self.tokenizer)
         for batch_idx in range(0, len(requests), self.batch_size):
             batch_requests = requests[batch_idx : batch_idx + self.batch_size]
             contexts, gen_args = zip(*[req.args for req in batch_requests])
 
+            # ====== BEGIN merged _generate_batch logic ======
             prompts = list(contexts)
             if self.add_bos_token:
                 prompts = [self.tokenizer.bos_token + p for p in prompts]
 
+            # tokenize
             prompt_ids = [
                 self.tokenizer(p, return_tensors="pt", padding=False)
                 .input_ids.squeeze()
@@ -138,9 +227,11 @@ class DreamEvalHarness(BaseEvalHarness):
                 eval_logger.warning(
                     f"Prompt length {max(prompt_lens)} exceeds {cutoff_len}, cutoff on the left side"
                 )
+                # ✅ Correct: trim from the left side (keep the last cutoff_len tokens)
                 prompt_ids = [p_id[-cutoff_len:] for p_id in prompt_ids]
 
-            generation_ids = self.sampler.sample(
+            # generation
+            generation_ids = sampler.sample(
                 max_new_tokens=self.max_new_tokens,
                 inputs=prompt_ids,
                 steps=self.steps,
@@ -149,10 +240,10 @@ class DreamEvalHarness(BaseEvalHarness):
                 top_k=self.top_k,
                 alg=self.alg,
                 alg_temp=self.alg_temp,
-                cfg_scale=self.cfg_scale,
                 output_history=False,
                 return_dict=False,
             )
+            # decode and cleanup
             cleaned_generation_ids = [
                 (
                     seq[seq.ne(self.tokenizer.eos_token_id).float().argmax().long() :]
@@ -169,6 +260,9 @@ class DreamEvalHarness(BaseEvalHarness):
                 for g in self.tokenizer.batch_decode(truncated_generation_ids)
             ]
 
+            # ====== END merged _generate_batch logic ======
+
+            # handle "until" truncation
             if not self.escape_until:
                 for i, r in enumerate(responses):
                     for s in gen_args[i]["until"]:
@@ -184,14 +278,17 @@ class DreamEvalHarness(BaseEvalHarness):
         self, batch: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         b, l = batch.shape
+        # sample from U[0, 1] following https://arxiv.org/pdf/2107.00630 I.1
         u0 = torch.rand(1, device=batch.device, dtype=torch.float32)
         indices = torch.arange(b, device=batch.device).float()
         t = (u0 + indices / b) % 1
 
         p_mask = (1 - self.sampling_eps) * t + self.sampling_eps
+
         p_mask = p_mask[:, None].repeat(1, l)
 
         mask_indices = torch.rand((b, l), device=batch.device) < p_mask
+        # always unmask bos and eos
         mask_indices[:, 0] = False
         mask_indices[:, -1] = False
 
@@ -202,10 +299,26 @@ class DreamEvalHarness(BaseEvalHarness):
     def get_logits(
         self, batch: torch.Tensor, prompt_index: torch.Tensor
     ) -> torch.Tensor:
-        """Single conditional forward for loglikelihood; CFG is only used in the sampler (generate_until)."""
+        """
+        prompt_index : 1D bool tensor, length=batch.shape[1]
+        """
+        if self.classifier_free_guidance > 1.0:
+            assert len(prompt_index) == batch.shape[1]
+            prompt_index = prompt_index.unsqueeze(0).repeat(batch.shape[0], 1)
+            un_batch = batch.clone()
+            un_batch[prompt_index] = self.mask_id
+            batch = torch.cat([batch, un_batch])
+
+        input = batch
+
         with torch.amp.autocast("cuda", dtype=torch.bfloat16):
-            logits = self.model(batch).logits
+            logits = self.model(input).logits
+            # since bos always unmask, the first logits will not be used
             logits = torch.cat([logits[:, :1], logits[:, :-1]], dim=1)
+
+        if self.classifier_free_guidance > 1.0:
+            logits, un_logits = torch.chunk(logits, 2, dim=0)
+            logits = un_logits + self.cfg * (logits - un_logits)
         return logits[:, : batch.shape[1]]
 
     @torch.no_grad()
@@ -226,7 +339,9 @@ class DreamEvalHarness(BaseEvalHarness):
         loss_acc = []
         for _ in range(max(self.mc_num // self.batch_size, 1)):
             perturbed_seq = seq.clone()
+            # eval_logger.info("before noising")
             perturbed_seq_, p_mask = self._forward_process(seq)
+            # eval_logger.info("end noising")
             if self.log_type == "ftb":
                 perturbed_seq[:, -len(target) :] = perturbed_seq_[:, -len(target) :]
             elif self.log_type == "btf":
@@ -251,7 +366,7 @@ class DreamEvalHarness(BaseEvalHarness):
 
     @torch.no_grad()
     def _eval_target_nll_ar(self, prefix: torch.Tensor, target: torch.Tensor) -> float:
-        prefix, target = prefix.unsqueeze(0), target.unsqueeze(0)
+        prefix, target = prefix.unsqueeze(0), target.unsqueeze(0)  # 1*l1, 1*l2
         assert self.log_type in ["ftb", "btf"]
         assert self.nll_type in ["ar_ftb", "ar_btf"]
 
@@ -267,9 +382,9 @@ class DreamEvalHarness(BaseEvalHarness):
             )
 
         if self.log_type == "ftb":
-            perturbed_ = target.repeat(target.shape[1], 1).clone().contiguous()
+            perturbed_ = target.repeat(target.shape[1], 1).clone().contiguous()  # l2*l2
         else:
-            perturbed_ = prefix.repeat(prefix.shape[1], 1).clone().contiguous()
+            perturbed_ = prefix.repeat(prefix.shape[1], 1).clone().contiguous()  # l1*l1
 
         mask_index = torch.ones(
             (perturbed_.shape[1], perturbed_.shape[1]), dtype=torch.bool
@@ -354,6 +469,10 @@ class DreamEvalHarness(BaseEvalHarness):
     def _encode_pair(
         self, context: str, continuation: str
     ) -> tuple[list[int], list[int]]:
+        """
+        Move trailing spaces in the context to the beginning of the continuation
+        and encode both pieces into token ids.
+        """
         if self.add_bos_token:
             context = self.tokenizer.bos_token + context
 
@@ -366,9 +485,11 @@ class DreamEvalHarness(BaseEvalHarness):
             self.tokenizer.eos_token_id
         ]
         context_enc = self.tokenizer.encode(context)
+
         context_enc_len = len(context_enc)
         continuation_enc = whole_enc[context_enc_len:]
 
+        # by default truncate on the left
         cutoff_length = max(len(whole_enc) - self.max_length, 0)
         if cutoff_length > 0:
             eval_logger.warning(
@@ -378,12 +499,33 @@ class DreamEvalHarness(BaseEvalHarness):
             if context_remain > 0:
                 context_enc = context_enc[-context_remain:]
             else:
-                eval_logger.warning("All context (prompt) is truncated.")
+                eval_logger.warning(f"All context (prompt) is truncated.")
                 context_enc = []
                 continuation_enc = whole_enc[-self.max_length :]
         return context_enc, continuation_enc
 
     def loglikelihood(self, requests: list[Instance]) -> list[tuple[float, bool]]:
+        """Compute log-likelihood of generating a continuation from a context.
+        Downstream tasks should attempt to use loglikelihood instead of other
+        LM calls whenever possible.
+
+        :param requests: list[Instance]
+            A list of Instance objects, with property `args` which returns a tuple (context, continuation).
+            `context: str`
+                Context string. Implementations of LM must be able to handle an
+                empty context string.
+            `continuation: str`
+                The continuation over which log likelihood will be calculated. If
+                there is a word boundary, the space should be in the continuation.
+                For example, context="hello" continuation=" world" is correct.
+
+        :return: list[tuple[float, bool]]
+            A list of pairs (logprob, isgreedy)
+            `logprob: float`
+                The log probability of `continuation`.
+            `isgreedy`:
+                Whether `continuation` would be generated by greedy sampling from `context`.
+        """
         out = []
         with torch.no_grad():
             for instance in tqdm(requests, desc="Computing likelihood..."):
