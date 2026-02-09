@@ -198,7 +198,7 @@ class BD3LMEvalHarness(LM):
                 right_shift_logits=self.right_shift_logits,
             )
             generated_answer = self.tokenizer.decode(
-                generated_ids[0][prompt[0].shape[0] :], skip_special_tokens=False
+                generated_ids[0], skip_special_tokens=False
             )
             for stop_seq in stop_tokens:
                 if stop_seq in generated_answer:

@@ -442,6 +442,9 @@ class BD3LMSampler(BaseSampler):
 
             generated += cur_block_len
 
+        # remove padded prompt prefix
+        x = x[:, padded_prompt_len:]
+
         # ==========================================================
         # 4) Output
         # ==========================================================
