@@ -241,10 +241,12 @@ class BD3LMSampler(BaseSampler):
             dtype=torch.long,
             device=self.model.device,
         )
+        num_pad = []
         for b, p in enumerate(inputs):
             L = prompt_lens[b]
             offset = padded_prompt_len - L  # left padding
             x[b, offset : offset + L] = p
+            num_pad.append(offset)
 
         # Tokens considered "given" for unconditional branch in CFG.
         unmasked_index = (x != mask_id) & (x != pad_id)
@@ -441,6 +443,13 @@ class BD3LMSampler(BaseSampler):
                 done = done | eos_in_block
 
             generated += cur_block_len
+
+        # Remove left padding and replace with right padding
+        out = torch.full_like(x, pad_id)
+        for b, offset in enumerate(num_pad):
+            x_b = x[b, offset:]
+            out[b, : x_b.shape[0]] = x_b
+        x = out
 
         # ==========================================================
         # 4) Output
