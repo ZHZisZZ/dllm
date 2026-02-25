@@ -26,7 +26,7 @@ def load_font_auto_size(text, w, h, target_width_ratio=0.95, target_height_ratio
             font = ImageFont.truetype(
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size=mid
             )
-        except:
+        except OSError:
             font = ImageFont.load_default()
         dummy = Image.new("L", (w, h), 0)
         d = ImageDraw.Draw(dummy)

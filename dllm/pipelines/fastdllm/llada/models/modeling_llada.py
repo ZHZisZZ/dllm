@@ -42,7 +42,7 @@ try:
     from torch.nn.attention.flex_attention import flex_attention, create_block_mask
 
     FLEX_ATTN_AVAILABLE = True
-except:
+except ImportError:
     FLEX_ATTN_AVAILABLE = False
 import torch
 import torch.backends.cuda
