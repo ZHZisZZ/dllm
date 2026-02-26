@@ -132,13 +132,13 @@ class BD3LMEvalHarness(BaseEvalHarness):
 
     @torch.no_grad()
     def _get_logits(
-        self, batch: torch.Tensor, prompt_index: torch.Tensor
+        self, batch: torch.Tensor, x0: torch.Tensor, prompt_index: torch.Tensor
     ) -> torch.Tensor:
         """BD3LM forward: [x_t ⊕ x_0] with block-diffusion attention, return x_t logits."""
         b, l = batch.shape
 
         # [x_t ⊕ x_0]: noised first half, clean second half
-        concat_input_ids = torch.cat([batch, self._x0], dim=1)  # [b, 2l]
+        concat_input_ids = torch.cat([batch, x0], dim=1)  # [b, 2l]
 
         # Position IDs: [0..l-1, 0..l-1] (duplicated for both halves)
         base_pos = torch.arange(l, device=batch.device).unsqueeze(0).expand(b, l)
@@ -204,14 +204,14 @@ class BD3LMEvalHarness(BaseEvalHarness):
         seq = seq.repeat((self.batch_size, 1)).to(self.device)
         prompt_index = torch.arange(seq.shape[1], device=self.device) < len(prefix)
 
-        # Store clean x_0 for _get_logits to construct [x_t ⊕ x_0]
-        self._x0 = seq.clone()
+        # Clean x_0 for [x_t ⊕ x_0] construction
+        x0 = seq.clone()
 
         loss_acc = []
         for _ in range(self.mc_num // self.batch_size):
             perturbed_seq, p_mask = self._forward_process(seq, prompt_index)
             mask_indices = perturbed_seq == self.mask_id
-            logits = self._get_logits(perturbed_seq, prompt_index)
+            logits = self._get_logits(perturbed_seq, x0, prompt_index)
             loss = (
                 F.cross_entropy(
                     logits[mask_indices],
@@ -242,12 +242,12 @@ class BD3LMEvalHarness(BaseEvalHarness):
         prefix, target = prefix.to(self.device), target.to(self.device)
         seq[0, : len(prefix)] = prefix
 
-        # Store the clean reference for [x_t ⊕ x_0] construction
-        self._x0 = torch.cat([prefix, target]).unsqueeze(0)
+        # Clean reference for [x_t ⊕ x_0] construction
+        x0_clean = torch.cat([prefix, target]).unsqueeze(0)
 
         for i in range(len(target)):
             mask_index = seq == self.mask_id
-            logits = self._get_logits(seq, prompt_index)[mask_index]
+            logits = self._get_logits(seq, x0_clean, prompt_index)[mask_index]
             x0 = torch.argmax(logits, dim=-1)
             p = torch.softmax(logits.to(torch.float32), dim=-1)
             confidence = torch.gather(p, dim=-1, index=torch.unsqueeze(x0, -1)).squeeze(
@@ -276,6 +276,10 @@ class BD3LMEvalHarness(BaseEvalHarness):
             continuation = torch.tensor(
                 continuation_enc, device=self.device, dtype=torch.long
             )
+
+            if continuation.shape[0] == 0:
+                out.append((0.0, False))
+                continue
 
             logprob = self._get_loglikelihood(context, continuation)
             isgreedy = self._suffix_greedy_prediction(context, continuation)
