@@ -213,6 +213,8 @@ bash examples/llada/eval.sh --model_name_or_path GSAI-ML/LLaDA-8B-Base --instruc
 
 For **Fast-dLLM** sampling and evaluation with LLaDA, see the [Fast-dLLM README](../fastdllm/README.md).
 
+For **Info-Gain** sampling and evaluation with LLaDA, see the [Info-Gain README](../infogain/README.md).
+
 ### Evaluation results
 
 > Results (Reproduced) are evaluated using our framework, while results (Official) come from the original [paper](https://arxiv.org/abs/2502.09992). All evaluation settings follow the configurations in the [LLaDA](https://github.com/ML-GSAI/LLaDA) repository, with minor adjustments. 
