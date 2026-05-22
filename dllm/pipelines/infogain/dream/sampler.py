@@ -261,7 +261,7 @@ class InfoGainDreamSampler(BaseSampler):
                             if valid.shape[0] == 0:
                                 break
                             best_pos = valid[conf_base[0, valid].argmax()].unsqueeze(0)
-                            x[0, best_pos] = x0s[0][0, best_pos]
+                            x[0, best_pos] = x0s[0, best_pos]
                         else:
                             nc = len(actions)
                             x_batch = xx.expand(nc, -1).clone()

@@ -95,18 +95,35 @@ def get_tokenizer(
     # Lazy imports to avoid circular dependencies
     from transformers import (
         BertPreTrainedModel,
-        ModernBertPreTrainedModel,
         RobertaPreTrainedModel,
     )
+    try:
+        from transformers import ModernBertPreTrainedModel
+    except ImportError:
+        ModernBertPreTrainedModel = None
 
-    from dllm.pipelines.a2d import (
-        A2DLlamaLMHeadModel,
-        A2DQwen2LMHeadModel,
-        A2DQwen3LMHeadModel,
-    )
-    from dllm.pipelines.dream.models.modeling_dream import DreamModel
-    from dllm.pipelines.llada2.models import modeling_llada2_moe as llada2_moe_mod
-    from dllm.pipelines.llada21.models import modeling_llada21_moe as llada21_moe_mod
+    try:
+        from dllm.pipelines.a2d import (
+            A2DLlamaLMHeadModel,
+            A2DQwen2LMHeadModel,
+            A2DQwen3LMHeadModel,
+        )
+    except ImportError:
+        A2DLlamaLMHeadModel = None
+        A2DQwen2LMHeadModel = None
+        A2DQwen3LMHeadModel = None
+    try:
+        from dllm.pipelines.dream.models.modeling_dream import DreamModel
+    except ImportError:
+        DreamModel = None
+    try:
+        from dllm.pipelines.llada2.models import modeling_llada2_moe as llada2_moe_mod
+    except ImportError:
+        llada2_moe_mod = None
+    try:
+        from dllm.pipelines.llada21.models import modeling_llada21_moe as llada21_moe_mod
+    except ImportError:
+        llada21_moe_mod = None
     from dllm.pipelines.llada.models.modeling_llada import LLaDAModelLM
     from dllm.pipelines.llada.models.modeling_lladamoe import LLaDAMoEModelLM
 
@@ -134,6 +151,15 @@ def get_tokenizer(
     model_cfg = transformers.AutoConfig.from_pretrained(model_name_or_path)
     model_cls = transformers.AutoModel._model_mapping[type(model_cfg)]
 
+    bert_model_classes = [BertPreTrainedModel, RobertaPreTrainedModel]
+    if ModernBertPreTrainedModel is not None:
+        bert_model_classes.append(ModernBertPreTrainedModel)
+    llada_moe_model_classes = [LLaDAMoEModelLM]
+    if llada2_moe_mod is not None:
+        llada_moe_model_classes.append(llada2_moe_mod.LLaDA2MoeModelLM)
+    if llada21_moe_mod is not None:
+        llada_moe_model_classes.append(llada21_moe_mod.LLaDA2MoeModelLM)
+
     # ---------------- Model-specific customization ----------------
     if issubclass(model_cls, LLaDAModelLM):
         tokenizer.add_special_tokens({"mask_token": "<|mdm_mask|>"})
@@ -154,24 +180,14 @@ def get_tokenizer(
 
 {% endif %}
 """
-    elif issubclass(
-        model_cls,
-        (
-            LLaDAMoEModelLM,
-            llada2_moe_mod.LLaDA2MoeModelLM,
-            llada21_moe_mod.LLaDA2MoeModelLM,
-        ),
-    ):
+    elif issubclass(model_cls, tuple(llada_moe_model_classes)):
         tokenizer.add_special_tokens({"mask_token": "<|mask|>"})
         tokenizer.eot_token = "<|role_end|>"
         tokenizer.eot_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eot_token)
-    elif issubclass(model_cls, DreamModel):
+    elif DreamModel is not None and issubclass(model_cls, DreamModel):
         tokenizer.eot_token = "<|im_end|>"
         tokenizer.eot_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eot_token)
-    elif issubclass(
-        model_cls,
-        (BertPreTrainedModel, RobertaPreTrainedModel, ModernBertPreTrainedModel),
-    ):
+    elif issubclass(model_cls, tuple(bert_model_classes)):
         tokenizer.eot_token = "[/Answer]"
         tokenizer.chat_template = """\
 {% if messages[0]['role'] == 'system' %}
@@ -200,11 +216,11 @@ def get_tokenizer(
 [Answer]
 {% endif %}
 """
-    elif issubclass(model_cls, A2DLlamaLMHeadModel):
+    elif A2DLlamaLMHeadModel is not None and issubclass(model_cls, A2DLlamaLMHeadModel):
         tokenizer.add_special_tokens({"mask_token": "<|mask|>"})
         tokenizer.eot_token = "<|eot_id|>"
         tokenizer.eot_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eot_token)
-    elif issubclass(model_cls, (A2DQwen2LMHeadModel, A2DQwen3LMHeadModel)):
+    elif any(cls is not None and issubclass(model_cls, cls) for cls in (A2DQwen2LMHeadModel, A2DQwen3LMHeadModel)):
         tokenizer.add_special_tokens({"mask_token": "<|mask|>"})
         tokenizer.eot_token = "<|im_end|>"
         tokenizer.eot_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eot_token)

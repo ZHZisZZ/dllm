@@ -1890,6 +1890,7 @@ class InfoGainLLaDAModelLM(PreTrainedModel):
         config: InfoGainLLaDAConfig,
         model: Optional[InfoGainLLaDAModel] = None,
         init_params: bool = False,
+        **kwargs,
     ):
         super().__init__(config)
 

@@ -136,4 +136,5 @@ dmypy.json
 /.data/
 /wandb/
 /.logs/
+/run-logs/
 /.models/

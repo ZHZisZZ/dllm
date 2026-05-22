@@ -231,7 +231,7 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
                         continue
                     best_pos = valid[conf_base[0, valid].argmax()].unsqueeze(0)
                     x_row = x[row].clone()
-                    x_row[best_pos] = x0s[0][0, best_pos]
+                    x_row[best_pos] = x0s[0, best_pos]
                     x[row] = x_row
                     continue
 
