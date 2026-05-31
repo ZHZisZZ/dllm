@@ -1,3 +1,9 @@
+"""
+Run from the dllm repo root on a GPU node, for example:
+
+    python scripts/tests/test_infogain_real_inference.py --pipeline llada --model_name_or_path /path/to/LLaDA-8B-Instruct
+"""
+
 from __future__ import annotations
 
 import argparse

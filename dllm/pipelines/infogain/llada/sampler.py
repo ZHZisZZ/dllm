@@ -76,7 +76,22 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
         )
         variant = kwargs.get("variant", config.variant)
 
-        assert block_size >= 1 and steps >= 1
+        steps = int(steps)
+        if steps < 1:
+            raise ValueError(f"steps must be >= 1, got {steps}")
+        candidate_number = int(candidate_number)
+        position_temperature = float(position_temperature)
+        if candidate_number < 1:
+            raise ValueError(
+                f"candidate_number must be >= 1, got {candidate_number}"
+            )
+        if position_temperature < 0:
+            raise ValueError(
+                "position_temperature must be non-negative, "
+                f"got {position_temperature}"
+            )
+        ig.validate_info_gain_variant(variant)
+
         mask_id = self.tokenizer.mask_token_id
         bos_id = self.tokenizer.bos_token_id
         eos_id = self.tokenizer.eos_token_id
@@ -119,20 +134,20 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
             prompt_lens = [p.shape[0] for p in inputs_list]
             max_prompt_len = max(prompt_lens)
 
-        if max_new_tokens is not None:
-            if max_length is None:
-                max_length = max_prompt_len + max_new_tokens
-            else:
-                max_new_tokens = max_length - max_prompt_len
-        else:
-            if max_length is None:
-                raise ValueError("Either max_new_tokens or max_length must be set.")
-            max_new_tokens = max_length - max_prompt_len
+        max_new_tokens, max_length = ig.resolve_generation_lengths(
+            max_new_tokens=max_new_tokens,
+            max_length=max_length,
+            max_prompt_len=max_prompt_len,
+        )
+        block_size = max_new_tokens if block_size is None else int(block_size)
+        if block_size < 1:
+            raise ValueError(f"block_size must be >= 1, got {block_size}")
 
         if B != 1:
             raise ValueError(
                 "Info-Gain LLaDA decoding (use_cache=None) currently supports batch size 1. "
-                "Use Fast-dLLM path by setting use_cache to 'prefix' or 'dual' for batched eval."
+                "Set eval batch_size=1, or use the Fast-dLLM path with use_cache='prefix' "
+                "or 'dual' when batching equal-length prompts."
             )
 
         T = int(max_length)

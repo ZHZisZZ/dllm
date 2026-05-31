@@ -17,7 +17,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch Info-Gain Dream model (same weights as Dream; distinct ``model_type``)."""
+"""
+PyTorch Info-Gain Dream model (same weights as Dream; distinct ``model_type``).
+
+Run compile check:
+    python -m py_compile dllm/pipelines/infogain/dream/models/modeling_dream.py
+"""
 
 import math
 from typing import List, Optional, Tuple, Union
@@ -464,6 +469,17 @@ class InfoGainDreamSdpaAttention(InfoGainDreamAttention):
         dual_cache: Optional[bool] = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         if output_attentions:
+            if (
+                use_cache
+                or past_key_value is not None
+                or dual_cache
+                or replace_position is not None
+            ):
+                raise ValueError(
+                    "output_attentions=True is not supported together with "
+                    "InfoGainDream cache decoding. Disable output_attentions or "
+                    "set use_cache=False."
+                )
             # TODO: Improve this warning with e.g. `model.config.attn_implementation = "manual"` once this is implemented.
             logger.warning_once(
                 "InfoGainDreamModel is using InfoGainDreamSdpaAttention, but `torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to the manual attention implementation, "
@@ -476,6 +492,8 @@ class InfoGainDreamSdpaAttention(InfoGainDreamAttention):
                 past_key_value=past_key_value,
                 output_attentions=output_attentions,
                 use_cache=use_cache,
+                cache_position=cache_position,
+                position_embeddings=position_embeddings,
             )
 
         bsz, q_len, _ = hidden_states.size()
@@ -484,15 +502,44 @@ class InfoGainDreamSdpaAttention(InfoGainDreamAttention):
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
+        block_end_index = None
         if past_key_value is not None:
             if dual_cache:
+                if replace_position is None:
+                    raise ValueError(
+                        "replace_position must be provided when dual_cache=True."
+                    )
+                if replace_position.dim() != 2:
+                    raise ValueError(
+                        "replace_position must have shape [batch, sequence_length], "
+                        f"got {tuple(replace_position.shape)}"
+                    )
+                if replace_position.shape[0] != bsz:
+                    raise ValueError(
+                        "replace_position batch size must match hidden_states: "
+                        f"{replace_position.shape[0]} != {bsz}"
+                    )
                 past_key, past_value = past_key_value
-                replace_indices = replace_position.nonzero(as_tuple=True)[1]
-                past_key[:, replace_indices] = key_states
+                selected_counts = replace_position.sum(dim=1)
+                if not torch.all(selected_counts == q_len):
+                    raise ValueError(
+                        "Each batch row in replace_position must select exactly "
+                        f"{q_len} positions; got {selected_counts.tolist()}."
+                    )
+                for batch_idx in range(bsz):
+                    replace_indices = replace_position[batch_idx].nonzero(
+                        as_tuple=True
+                    )[0]
+                    past_key[batch_idx, replace_indices] = key_states[batch_idx]
+                    past_value[batch_idx, replace_indices] = value_states[batch_idx]
+                block_end_index = int(
+                    replace_position.nonzero(as_tuple=True)[1].max().item() + 1
+                )
                 key_states = past_key
-                past_value[:, replace_indices] = value_states
                 value_states = past_value
             else:
+                if replace_position is not None:
+                    raise ValueError("replace_position requires dual_cache=True.")
                 past_key, past_value = past_key_value
                 key_states = torch.cat([past_key, key_states], dim=-2)
                 value_states = torch.cat([past_value, value_states], dim=-2)
@@ -520,13 +567,13 @@ class InfoGainDreamSdpaAttention(InfoGainDreamAttention):
         else:
             cos, sin = position_embeddings
 
-        if dual_cache:
+        if block_end_index is not None:
             query_states, key_states = apply_rotary_pos_emb(
                 query_states,
                 key_states,
                 cos,
                 sin,
-                block_end_index=replace_indices.max() + 1,
+                block_end_index=block_end_index,
             )
         else:
             query_states, key_states = apply_rotary_pos_emb(
@@ -825,6 +872,22 @@ class InfoGainDreamBaseModel(InfoGainDreamPreTrainedModel):
                 )
                 use_cache = False
 
+        if output_attentions and (
+            use_cache
+            or past_key_values is not None
+            or dual_cache
+            or replace_position is not None
+        ):
+            raise ValueError(
+                "output_attentions=True is not supported together with "
+                "InfoGainDream cache decoding. Disable output_attentions or "
+                "set use_cache=False."
+            )
+        if replace_position is not None and not dual_cache:
+            raise ValueError("replace_position requires dual_cache=True.")
+        if past_key_values is not None and len(past_key_values) == 0:
+            raise ValueError("past_key_values must be None or a non-empty layer list.")
+
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
@@ -898,7 +961,7 @@ class InfoGainDreamBaseModel(InfoGainDreamPreTrainedModel):
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
             if use_cache:
-                attn_key_values.append(layer_outputs[1])
+                attn_key_values.append(layer_outputs[-1])
 
         hidden_states = self.norm(hidden_states)
 

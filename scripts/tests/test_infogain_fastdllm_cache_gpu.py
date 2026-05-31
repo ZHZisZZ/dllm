@@ -1,3 +1,9 @@
+"""
+Run from the dllm repo root on a GPU node:
+
+    python scripts/tests/test_infogain_fastdllm_cache_gpu.py
+"""
+
 from __future__ import annotations
 
 import copy

@@ -1,5 +1,7 @@
 """
 Reference: https://huggingface.co/Dream-org/Dream-v0-Base-7B/blob/main/generation_utils.py
+
+Run: python -u examples/infogain/dream/sample.py --model_name_or_path "Dream-org/Dream-v0-Instruct-7B"
 """
 
 from dataclasses import dataclass
@@ -12,6 +14,16 @@ from dllm.core.samplers.base import BaseSampler, BaseSamplerConfig, BaseSamplerO
 from dllm.core.samplers.utils import get_num_transfer_tokens
 from dllm.pipelines.dream.models.generation_utils import top_k_logits, top_p_logits
 from dllm.pipelines.infogain import info_gain_ops as ig
+
+
+def _require_past_key_values(model_output, mode: str):
+    past_key_values = getattr(model_output, "past_key_values", None)
+    if past_key_values is None:
+        raise RuntimeError(
+            "Model did not return past_key_values with use_cache=True "
+            f"for Dream {mode} cache decoding."
+        )
+    return past_key_values
 
 
 def sample_tokens(
@@ -124,21 +136,55 @@ class InfoGainDreamSampler(BaseSampler):
             raise RuntimeError(
                 f"Unknown use_cache mode: {use_cache}. Expected None, 'prefix', or 'dual'."
             )
+        steps = int(steps)
+        if steps < 1:
+            raise ValueError(f"steps must be >= 1, got {steps}")
+        candidate_number = int(candidate_number)
+        position_temperature = float(position_temperature)
+        if candidate_number < 1:
+            raise ValueError(
+                f"candidate_number must be >= 1, got {candidate_number}"
+            )
+        if position_temperature < 0:
+            raise ValueError(
+                "position_temperature must be non-negative, "
+                f"got {position_temperature}"
+            )
+        ig.validate_info_gain_variant(info_gain_variant)
 
         # --- Initialization ---
         mask_token_id = self.tokenizer.mask_token_id
         eos_token_id = self.tokenizer.eos_token_id
 
+        if isinstance(inputs, torch.Tensor):
+            if inputs.dim() == 1:
+                inputs = [inputs.to(device=self.model.device, dtype=torch.long)]
+            elif inputs.dim() == 2:
+                inputs = [
+                    row.to(device=self.model.device, dtype=torch.long)
+                    for row in inputs
+                ]
+            else:
+                raise ValueError(
+                    f"inputs tensor must be rank 1 or 2, got shape={tuple(inputs.shape)}"
+                )
+        else:
+            if len(inputs) == 0:
+                raise ValueError("inputs is empty")
         if isinstance(inputs[0], list):
             inputs = [
                 torch.as_tensor(p, dtype=torch.long, device=self.model.device)
                 for p in inputs
             ]
         prompt_lens = [p.shape[0] for p in inputs]
-        if max_length is None and max_new_tokens is not None:
-            max_length = max_new_tokens + max(prompt_lens)
-        elif max_new_tokens is None and max_length is not None:
-            max_new_tokens = max_length - max(prompt_lens)
+        max_new_tokens, max_length = ig.resolve_generation_lengths(
+            max_new_tokens=max_new_tokens,
+            max_length=max_length,
+            max_prompt_len=max(prompt_lens),
+        )
+        block_size = max_new_tokens if block_size is None else int(block_size)
+        if block_size < 1:
+            raise ValueError(f"block_size must be >= 1, got {block_size}")
 
         B = len(inputs)
         T = max_length
@@ -189,6 +235,11 @@ class InfoGainDreamSampler(BaseSampler):
             raise RuntimeError(f"Unknown alg: {alg}")
 
         if use_cache is None:
+            if B != 1 and alg in ("info_gain", "confidence_threshold"):
+                raise ValueError(
+                    f"Dream alg={alg!r} currently supports batch size 1 only. "
+                    "Set eval batch_size=1 for this decoding path."
+                )
             mask_index = x == mask_token_id
             num_transfer_tokens_list = get_num_transfer_tokens(
                 mask_index=mask_index,
@@ -202,10 +253,6 @@ class InfoGainDreamSampler(BaseSampler):
             histories = [x.clone()] if return_dict else None
 
             if alg == "info_gain":
-                if B != 1:
-                    raise RuntimeError(
-                        "Dream Info-Gain decoding (alg='info_gain') requires batch size 1."
-                    )
                 if threshold is None:
                     raise RuntimeError(
                         "Pass `threshold` for high-confidence bypass (e.g. 0.8)."
@@ -268,8 +315,13 @@ class InfoGainDreamSampler(BaseSampler):
                             for ii, (act, x0) in enumerate(zip(actions, x0s)):
                                 x_batch[ii, act] = x0[0, act]
                             attn = attention_mask[0:1].expand(nc, -1)
+                            next_pos_id = (
+                                pos_id.expand(nc, -1) if pos_id is not None else None
+                            )
                             next_logits = self.model(
-                                x_batch, attn, pos_id.expand(nc, -1) if pos_id is not None else None
+                                x_batch,
+                                attn,
+                                next_pos_id,
                             ).logits
                             if right_shift_logits:
                                 next_logits = torch.cat(
@@ -301,6 +353,8 @@ class InfoGainDreamSampler(BaseSampler):
                 i = 0
                 while True:
                     mask_index = x == mask_token_id
+                    if not mask_index.any():
+                        break
                     logits = self.model(x, attention_mask, pos_id).logits
 
                     logits = shift_and_hook(i, x, logits)
@@ -315,9 +369,6 @@ class InfoGainDreamSampler(BaseSampler):
                         dtype=confidence.dtype,
                     )
                     full_confidence[mask_index] = confidence
-
-                    if not torch.any(mask_index[0]):
-                        continue
 
                     # Budget this step: top-k where k = num_transfer + leftover from past steps
                     current_transfer_tokens = (
@@ -359,6 +410,8 @@ class InfoGainDreamSampler(BaseSampler):
             else:
                 for i in range(effective_steps):
                     mask_index = x == mask_token_id
+                    if not mask_index.any():
+                        break
 
                     logits = self.model(x, attention_mask, pos_id).logits
 
@@ -405,20 +458,38 @@ class InfoGainDreamSampler(BaseSampler):
                 return BaseSamplerOutput(sequences=x, histories=histories)
 
         else:
+            if B != 1:
+                raise ValueError(
+                    "Dream prefix/dual cache decoding currently supports batch size 1. "
+                    "Set eval batch_size=1 or use use_cache=None with a batched-safe alg."
+                )
+            if alg == "info_gain":
+                raise ValueError(
+                    "Dream alg='info_gain' is only implemented for use_cache=None. "
+                    "Use alg='maskgit_plus', 'topk_margin', 'entropy', or "
+                    "'confidence_threshold' with cache modes."
+                )
+            if alg == "confidence_threshold" and threshold is None:
+                raise RuntimeError(
+                    "Missing `threshold` for alg == 'confidence_threshold'. "
+                    "Pass it via sample(..., threshold=...)."
+                )
             dual_cache = use_cache == "dual"
 
             gen_length = max_new_tokens
             if block_size is None:
                 block_size = gen_length
-            assert gen_length % block_size == 0, (
-                f"gen_length ({gen_length}) must be divisible by block_size "
-                f"({block_size})"
-            )
+            if gen_length % block_size != 0:
+                raise ValueError(
+                    f"gen_length ({gen_length}) must be divisible by block_size "
+                    f"({block_size})"
+                )
             num_blocks = gen_length // block_size
 
-            assert (
-                steps % num_blocks == 0
-            ), f"steps ({steps}) must be divisible by num_blocks ({num_blocks})"
+            if steps % num_blocks != 0:
+                raise ValueError(
+                    f"steps ({steps}) must be divisible by num_blocks ({num_blocks})"
+                )
             steps_per_block = steps // num_blocks
             timesteps = torch.linspace(1, eps, steps_per_block + 1, device=x.device)
             if attention_mask is not None and torch.any(attention_mask == 0):
@@ -447,7 +518,7 @@ class InfoGainDreamSampler(BaseSampler):
                 model_output = self.model(
                     x, cache_attention_mask, tok_idx, use_cache=True
                 )
-                past_key_values = model_output.past_key_values
+                past_key_values = _require_past_key_values(model_output, use_cache)
                 logits = shift_and_hook(global_step, x, model_output.logits)
 
                 _, x0_full = sample_tokens(
@@ -481,6 +552,8 @@ class InfoGainDreamSampler(BaseSampler):
 
                     mask_index = region == mask_token_id
                     mask_index[:, block_size:] = False
+                    if not mask_index.any():
+                        break
 
                     if cache_attention_mask != "full":
                         current_attention_mask = cache_attention_mask[
@@ -527,6 +600,9 @@ class InfoGainDreamSampler(BaseSampler):
                     x_[mask_index] = x0.clone()
 
                     if alg == "confidence_threshold":
+                        current_transfer_tokens = int(current_transfer_tokens.item())
+                        if current_transfer_tokens <= 0:
+                            break
                         selected_confidence, select_index = torch.topk(
                             full_confidence, current_transfer_tokens
                         )

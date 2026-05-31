@@ -13,6 +13,47 @@ import torch
 import torch.nn.functional as F
 
 
+def resolve_generation_lengths(
+    max_new_tokens: int | None,
+    max_length: int | None,
+    max_prompt_len: int,
+) -> tuple[int, int]:
+    """Resolve generation length args into positive (max_new_tokens, max_length)."""
+    if max_prompt_len < 0:
+        raise ValueError(f"max_prompt_len must be non-negative, got {max_prompt_len}")
+
+    if max_new_tokens is None and max_length is None:
+        raise ValueError("Either max_new_tokens or max_length must be set.")
+
+    if max_new_tokens is not None:
+        max_new_tokens = int(max_new_tokens)
+        if max_new_tokens <= 0:
+            raise ValueError(
+                f"max_new_tokens must be positive, got {max_new_tokens}"
+            )
+
+    if max_length is None:
+        assert max_new_tokens is not None
+        max_length = max_prompt_len + max_new_tokens
+    else:
+        max_length = int(max_length)
+        if max_length <= max_prompt_len:
+            raise ValueError(
+                "max_length must leave room for at least one generated token: "
+                f"max_length={max_length}, max_prompt_len={max_prompt_len}"
+            )
+        max_new_tokens = max_length - max_prompt_len
+
+    return int(max_new_tokens), int(max_length)
+
+
+def validate_info_gain_variant(variant: str) -> None:
+    if variant not in ("info_gain", "lookum"):
+        raise ValueError(
+            f"Unknown Info-Gain variant {variant!r}; expected 'info_gain' or 'lookum'."
+        )
+
+
 def compute_entropy(logits: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
     """Per-position Shannon entropy: [B, L, V] → [B, L]."""
     p = F.softmax(logits.float(), dim=-1).clamp(min=eps)
@@ -98,6 +139,7 @@ def score_candidates(
     variant: str = "info_gain",
 ):
     """Return (C, H_next, J) per candidate; higher J is better."""
+    validate_info_gain_variant(variant)
     ne = compute_entropy(next_logits)
     rm = x_batch == mask_id
     H_next = torch.where(rm, ne, ne.new_zeros(1)).sum(-1) / (rm.sum(-1).float() + 1e-10)
