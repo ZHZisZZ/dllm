@@ -143,13 +143,6 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
         if block_size < 1:
             raise ValueError(f"block_size must be >= 1, got {block_size}")
 
-        if B != 1:
-            raise ValueError(
-                "Info-Gain LLaDA decoding (use_cache=None) currently supports batch size 1. "
-                "Set eval batch_size=1, or use the Fast-dLLM path with use_cache='prefix' "
-                "or 'dual' when batching equal-length prompts."
-            )
-
         T = int(max_length)
         x = torch.full((B, T), eos_id, dtype=torch.long, device=self.model.device)
         attention_mask = torch.zeros((B, T), dtype=torch.long, device=self.model.device)
@@ -176,16 +169,11 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
 
         for b in range(num_blocks):
             widths: list[tuple[int, int, int]] = []
-            block_mask_index = torch.zeros(
-                (B, block_size), dtype=torch.bool, device=x.device
-            )
             for j in range(B):
                 start_j = prompt_lens[j] + b * block_size
                 end_j = min(start_j + block_size, prompt_lens[j] + max_new_tokens, T)
                 width_j = max(0, end_j - start_j)
                 widths.append((start_j, end_j, width_j))
-                if width_j > 0:
-                    block_mask_index[j, :width_j] = x[j, start_j:end_j] == mask_id
 
             for _step in range(steps_per_block):
                 mask_allowed = torch.zeros_like(x, dtype=torch.bool)
@@ -203,75 +191,83 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
                 if right_shift_logits:
                     logits = torch.cat([logits[:, :1], logits[:, :-1]], dim=1)
 
-                row = 0
-                start_j, end_j, width_j = widths[row]
-                if width_j == 0:
-                    continue
-                bs, be = start_j, end_j
-                lx = logits[row : row + 1]
-                xx = x[row : row + 1]
-                ma = mask_allowed[row : row + 1]
-
-                probs = F.softmax(lx[:, bs:be].float(), dim=-1)
-                max_conf = probs.max(-1).values
-                block_masked = ma[0, bs:be]
-                if (
-                    threshold is not None
-                    and threshold > 0
-                    and block_masked.any()
-                    and (max_conf[0][block_masked] >= threshold).all()
-                ):
-                    xx_new = ig.greedy_unmask_block(
-                        xx, lx, ma, bs, be, temperature, mask_id
-                    )
-                    x[row : row + 1] = xx_new
-                    continue
-
-                k = 1
-                result = ig.generate_candidates(
-                    lx,
-                    xx,
-                    ma,
-                    bs,
-                    be,
-                    k,
-                    candidate_number,
-                    temperature,
-                    position_temperature,
-                )
-                actions, x0s, conf_base, valid, _ = result
-
-                if actions is None:
-                    if valid.shape[0] == 0:
+                changed = False
+                for row in range(B):
+                    start_j, end_j, width_j = widths[row]
+                    if width_j == 0:
                         continue
-                    best_pos = valid[conf_base[0, valid].argmax()].unsqueeze(0)
-                    x_row = x[row].clone()
-                    x_row[best_pos] = x0s[0, best_pos]
-                    x[row] = x_row
-                    continue
+                    bs, be = start_j, end_j
+                    lx = logits[row : row + 1]
+                    xx = x[row : row + 1]
+                    ma = mask_allowed[row : row + 1]
+                    if not ma[:, bs:be].any():
+                        continue
 
-                nc = len(actions)
-                x_batch = xx.expand(nc, -1).clone()
-                for i, (act, x0) in enumerate(zip(actions, x0s)):
-                    x_batch[i, act] = x0[0, act]
+                    probs = F.softmax(lx[:, bs:be].float(), dim=-1)
+                    max_conf = probs.max(-1).values
+                    block_masked = ma[0, bs:be]
+                    if (
+                        threshold is not None
+                        and threshold > 0
+                        and block_masked.any()
+                        and (max_conf[0][block_masked] >= threshold).all()
+                    ):
+                        xx_new = ig.greedy_unmask_block(
+                            xx, lx, ma, bs, be, temperature, mask_id
+                        )
+                        x[row : row + 1] = xx_new
+                        changed = True
+                        continue
 
-                attn = attention_mask[row : row + 1].expand(nc, -1)
-                next_logits = self.model(x_batch, attention_mask=attn).logits
-                _apply_suppressions(next_logits)
-                if right_shift_logits:
-                    next_logits = torch.cat(
-                        [next_logits[:, :1], next_logits[:, :-1]], dim=1
+                    k = 1
+                    result = ig.generate_candidates(
+                        lx,
+                        xx,
+                        ma,
+                        bs,
+                        be,
+                        k,
+                        candidate_number,
+                        temperature,
+                        position_temperature,
                     )
+                    actions, x0s, conf_base, valid, _ = result
 
-                _, _, J = ig.score_candidates(
-                    lx, next_logits, x_batch, actions, mask_id, variant
-                )
-                best = int(J.argmax().item())
-                x_row = x[row].clone()
-                act = actions[best]
-                x_row[act] = x0s[best][0, act]
-                x[row] = x_row
+                    if actions is None:
+                        if valid.shape[0] == 0:
+                            continue
+                        best_pos = valid[conf_base[0, valid].argmax()].unsqueeze(0)
+                        x_row = x[row].clone()
+                        x_row[best_pos] = x0s[0, best_pos]
+                        x[row] = x_row
+                        changed = True
+                        continue
 
+                    nc = len(actions)
+                    x_batch = xx.expand(nc, -1).clone()
+                    for i, (act, x0) in enumerate(zip(actions, x0s)):
+                        x_batch[i, act] = x0[0, act]
+
+                    attn = attention_mask[row : row + 1].expand(nc, -1)
+                    next_logits = self.model(x_batch, attention_mask=attn).logits
+                    _apply_suppressions(next_logits)
+                    if right_shift_logits:
+                        next_logits = torch.cat(
+                            [next_logits[:, :1], next_logits[:, :-1]], dim=1
+                        )
+
+                    _, _, J = ig.score_candidates(
+                        lx, next_logits, x_batch, actions, mask_id, variant
+                    )
+                    best = int(J.argmax().item())
+                    x_row = x[row].clone()
+                    act = actions[best]
+                    x_row[act] = x0s[best][0, act]
+                    x[row] = x_row
+                    changed = True
+
+                if not changed:
+                    break
                 if histories is not None:
                     histories.append(x.clone())
 

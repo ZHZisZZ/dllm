@@ -61,7 +61,7 @@ def test_resolve_generation_lengths_validates_bounds() -> None:
         ig.resolve_generation_lengths(None, 3, 3)
 
 
-def test_llada_info_gain_rejects_batched_no_cache() -> None:
+def test_llada_info_gain_supports_batched_no_cache() -> None:
     sampler = InfoGainLLaDASampler(model=TinyNoCacheModel(), tokenizer=TinyTokenizer())
     cfg = InfoGainLLaDASamplerConfig(
         max_new_tokens=2,
@@ -69,16 +69,20 @@ def test_llada_info_gain_rejects_batched_no_cache() -> None:
         block_size=1,
         use_cache=None,
         threshold=0.0,
+        return_dict=True,
     )
 
-    with pytest.raises(ValueError, match="batch size 1"):
-        sampler.sample(
-            [torch.tensor([1, 3]), torch.tensor([1, 4])],
-            config=cfg,
-        )
+    out = sampler.sample(
+        [torch.tensor([1, 3]), torch.tensor([1, 4])],
+        config=cfg,
+    )
+
+    assert out.sequences.shape == (2, 4)
+    assert not (out.sequences[:, 2:] == TinyTokenizer.mask_token_id).any()
+    assert len(out.histories) >= 2
 
 
-def test_dream_info_gain_rejects_batched_no_cache() -> None:
+def test_dream_info_gain_supports_batched_no_cache() -> None:
     sampler = InfoGainDreamSampler(model=TinyNoCacheModel(), tokenizer=TinyTokenizer())
     cfg = InfoGainDreamSamplerConfig(
         max_new_tokens=2,
@@ -87,13 +91,42 @@ def test_dream_info_gain_rejects_batched_no_cache() -> None:
         use_cache=None,
         alg="info_gain",
         threshold=0.8,
+        return_dict=True,
     )
 
-    with pytest.raises(ValueError, match="batch size 1"):
-        sampler.sample(
-            [torch.tensor([1, 3]), torch.tensor([1, 4])],
-            config=cfg,
-        )
+    out = sampler.sample(
+        [torch.tensor([1, 3]), torch.tensor([1, 4])],
+        config=cfg,
+    )
+
+    assert out.sequences.shape == (2, 4)
+    assert not (out.sequences[:, -2:] == TinyTokenizer.mask_token_id).any()
+    assert len(out.histories) >= 2
+
+
+def test_dream_confidence_threshold_supports_batched_no_cache() -> None:
+    sampler = InfoGainDreamSampler(model=TinyNoCacheModel(), tokenizer=TinyTokenizer())
+    cfg = InfoGainDreamSamplerConfig(
+        max_new_tokens=3,
+        steps=3,
+        block_size=1,
+        use_cache=None,
+        alg="confidence_threshold",
+        threshold=0.8,
+        temperature=0.0,
+        top_p=1.0,
+        top_k=None,
+        right_shift_logits=False,
+        return_dict=True,
+    )
+
+    out = sampler.sample(
+        [torch.tensor([1, 3]), torch.tensor([1, 4])],
+        config=cfg,
+    )
+
+    assert out.sequences.shape == (2, 5)
+    assert not (out.sequences[:, -3:] == TinyTokenizer.mask_token_id).any()
 
 
 def test_dream_cache_requires_model_to_return_past_key_values() -> None:

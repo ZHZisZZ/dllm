@@ -7,9 +7,15 @@ Run from the dllm repo root on a GPU node:
 from __future__ import annotations
 
 import copy
+import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import torch
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from dllm.pipelines.fastdllm.llada import FastdLLMLLaDASampler, FastdLLMLLaDASamplerConfig
 from dllm.pipelines.fastdllm.dream import FastdLLMDreamSampler, FastdLLMDreamSamplerConfig
@@ -119,7 +125,7 @@ def run_one_llada_mode(mode: str, device: torch.device) -> dict[str, object]:
     info_model = copy.deepcopy(base_model).to(device).eval()
 
     tokenizer = TinyTokenizer()
-    prompt = torch.tensor([[1, 5, 6, 7]], device=device)
+    prompt = torch.tensor([[1, 5, 6, 7], [1, 8, 9, 10]], device=device)
 
     common = dict(
         max_new_tokens=8,
@@ -160,7 +166,7 @@ def run_one_llada_mode(mode: str, device: torch.device) -> dict[str, object]:
         "info_calls": len(info_model.calls),
         "info_saw_past": info_saw_past,
         "info_saw_replace": info_saw_replace,
-        "tail": info_out.sequences[0, -8:].detach().cpu().tolist(),
+        "tail": info_out.sequences[:, -8:].detach().cpu().tolist(),
     }
 
 
@@ -171,7 +177,10 @@ def run_one_dream_mode(mode: str, device: torch.device) -> dict[str, object]:
     info_model = copy.deepcopy(base_model).to(device).eval()
 
     tokenizer = TinyTokenizer()
-    prompt = [torch.tensor([1, 5, 6, 7], device=device)]
+    prompt = [
+        torch.tensor([1, 5, 6, 7], device=device),
+        torch.tensor([1, 8, 9, 10], device=device),
+    ]
 
     common = dict(
         max_new_tokens=8,
@@ -215,7 +224,7 @@ def run_one_dream_mode(mode: str, device: torch.device) -> dict[str, object]:
         "info_calls": len(info_model.calls),
         "info_saw_past": info_saw_past,
         "info_saw_replace": info_saw_replace,
-        "tail": info_out.sequences[0, -8:].detach().cpu().tolist(),
+        "tail": info_out.sequences[:, -8:].detach().cpu().tolist(),
     }
 
 

@@ -31,7 +31,6 @@ class InfoGainLLaDAEvalSamplerConfig(InfoGainLLaDASamplerConfig):
 @dataclass
 class InfoGainLLaDAEvalConfig(MDLMEvalConfig):
     max_length: int = 4096
-    batch_size: int = 1
 
     def get_model_config(self, pretrained: str):
         return InfoGainLLaDAConfig.from_pretrained(pretrained)

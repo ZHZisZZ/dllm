@@ -235,11 +235,6 @@ class InfoGainDreamSampler(BaseSampler):
             raise RuntimeError(f"Unknown alg: {alg}")
 
         if use_cache is None:
-            if B != 1 and alg in ("info_gain", "confidence_threshold"):
-                raise ValueError(
-                    f"Dream alg={alg!r} currently supports batch size 1 only. "
-                    "Set eval batch_size=1 for this decoding path."
-                )
             mask_index = x == mask_token_id
             num_transfer_tokens_list = get_num_transfer_tokens(
                 mask_index=mask_index,
@@ -257,8 +252,6 @@ class InfoGainDreamSampler(BaseSampler):
                     raise RuntimeError(
                         "Pass `threshold` for high-confidence bypass (e.g. 0.8)."
                     )
-                gen_seg_start = T - seq_lens[0] + prompt_lens[0]
-                gen_seg_end = T
                 step_i = 0
                 while True:
                     mask_index = x == mask_token_id
@@ -266,31 +259,39 @@ class InfoGainDreamSampler(BaseSampler):
                         break
                     logits = self.model(x, attention_mask, pos_id).logits
                     logits = shift_and_hook(step_i, x, logits)
-                    lx = logits[0:1]
-                    xx = x[0:1]
-                    ma = mask_index[0:1]
+                    changed = False
+                    for row in range(B):
+                        gen_seg_start = T - seq_lens[row] + prompt_lens[row]
+                        gen_seg_end = T
+                        lx = logits[row : row + 1]
+                        xx = x[row : row + 1]
+                        ma = mask_index[row : row + 1]
+                        if not ma[:, gen_seg_start:gen_seg_end].any():
+                            continue
 
-                    probs = F.softmax(
-                        lx[:, gen_seg_start:gen_seg_end].float(), dim=-1
-                    )
-                    max_conf = probs.max(-1).values
-                    block_masked = ma[0, gen_seg_start:gen_seg_end]
-                    if (
-                        threshold > 0
-                        and block_masked.any()
-                        and (max_conf[0][block_masked] >= threshold).all()
-                    ):
-                        xx_new = ig.greedy_unmask_block(
-                            xx,
-                            lx,
-                            ma,
-                            gen_seg_start,
-                            gen_seg_end,
-                            temperature,
-                            mask_token_id,
+                        probs = F.softmax(
+                            lx[:, gen_seg_start:gen_seg_end].float(), dim=-1
                         )
-                        x[0:1] = xx_new
-                    else:
+                        max_conf = probs.max(-1).values
+                        block_masked = ma[0, gen_seg_start:gen_seg_end]
+                        if (
+                            threshold > 0
+                            and block_masked.any()
+                            and (max_conf[0][block_masked] >= threshold).all()
+                        ):
+                            xx_new = ig.greedy_unmask_block(
+                                xx,
+                                lx,
+                                ma,
+                                gen_seg_start,
+                                gen_seg_end,
+                                temperature,
+                                mask_token_id,
+                            )
+                            x[row : row + 1] = xx_new
+                            changed = True
+                            continue
+
                         k = 1
                         result = ig.generate_candidates(
                             lx,
@@ -306,17 +307,20 @@ class InfoGainDreamSampler(BaseSampler):
                         actions, x0s, conf_base, valid, _ = result
                         if actions is None:
                             if valid.shape[0] == 0:
-                                break
+                                continue
                             best_pos = valid[conf_base[0, valid].argmax()].unsqueeze(0)
-                            x[0, best_pos] = x0s[0, best_pos]
+                            x[row, best_pos] = x0s[0, best_pos]
+                            changed = True
                         else:
                             nc = len(actions)
                             x_batch = xx.expand(nc, -1).clone()
                             for ii, (act, x0) in enumerate(zip(actions, x0s)):
                                 x_batch[ii, act] = x0[0, act]
-                            attn = attention_mask[0:1].expand(nc, -1)
+                            attn = attention_mask[row : row + 1].expand(nc, -1)
                             next_pos_id = (
-                                pos_id.expand(nc, -1) if pos_id is not None else None
+                                pos_id[row : row + 1].expand(nc, -1)
+                                if pos_id is not None
+                                else None
                             )
                             next_logits = self.model(
                                 x_batch,
@@ -337,8 +341,11 @@ class InfoGainDreamSampler(BaseSampler):
                             )
                             best = int(J.argmax().item())
                             act = actions[best]
-                            x[0, act] = x0s[best][0, act]
+                            x[row, act] = x0s[best][0, act]
+                            changed = True
 
+                    if not changed:
+                        break
                     step_i += 1
                     x = generation_tokens_hook_func(step_i, x, logits)
                     if histories is not None:
@@ -370,28 +377,31 @@ class InfoGainDreamSampler(BaseSampler):
                     )
                     full_confidence[mask_index] = confidence
 
-                    # Budget this step: top-k where k = num_transfer + leftover from past steps
-                    current_transfer_tokens = (
-                        int(mask_index.sum().item())
-                        - num_transfer_tokens_list[0, i + 1 :].sum().item()
-                        if i + 1 < effective_steps
-                        else int(mask_index.sum().item())
-                    )
-
-                    selected_confidence, select_index = torch.topk(
-                        full_confidence, current_transfer_tokens
-                    )
                     transfer_index = torch.zeros_like(
                         mask_index, dtype=torch.bool, device=mask_index.device
                     )
+                    for row in range(B):
+                        row_mask_count = int(mask_index[row].sum().item())
+                        if row_mask_count == 0:
+                            continue
+                        if i + 1 < effective_steps:
+                            remaining_budget = int(
+                                num_transfer_tokens_list[row, i + 1 :].sum().item()
+                            )
+                            current_transfer_tokens = row_mask_count - remaining_budget
+                        else:
+                            current_transfer_tokens = row_mask_count
+                        current_transfer_tokens = max(
+                            1, min(row_mask_count, int(current_transfer_tokens))
+                        )
 
-                    # Start by selecting all top-k
-                    transfer_index[0, select_index[0]] = True
-
-                    # Threshold-filter within top-k (keep top-1 always, so start from 1)
-                    for kk in range(1, current_transfer_tokens):
-                        if selected_confidence[0, kk] < threshold:
-                            transfer_index[0, select_index[0, kk]] = False
+                        selected_confidence, select_index = torch.topk(
+                            full_confidence[row], current_transfer_tokens
+                        )
+                        transfer_index[row, select_index] = True
+                        for kk in range(1, current_transfer_tokens):
+                            if selected_confidence[kk] < threshold:
+                                transfer_index[row, select_index[kk]] = False
 
                     # Safety: never transfer unmasked positions
                     transfer_index &= mask_index
@@ -458,11 +468,6 @@ class InfoGainDreamSampler(BaseSampler):
                 return BaseSamplerOutput(sequences=x, histories=histories)
 
         else:
-            if B != 1:
-                raise ValueError(
-                    "Dream prefix/dual cache decoding currently supports batch size 1. "
-                    "Set eval batch_size=1 or use use_cache=None with a batched-safe alg."
-                )
             if alg == "info_gain":
                 raise ValueError(
                     "Dream alg='info_gain' is only implemented for use_cache=None. "
@@ -582,9 +587,9 @@ class InfoGainDreamSampler(BaseSampler):
 
                     confidence, x0 = sample_with_alg(mask_logits)
 
-                    current_transfer_tokens = (
+                    block_mask_counts = (
                         x[:, current_block_start:current_block_end] == mask_token_id
-                    ).sum()
+                    ).sum(dim=1)
 
                     full_confidence = torch.full_like(
                         region,
@@ -600,59 +605,57 @@ class InfoGainDreamSampler(BaseSampler):
                     x_[mask_index] = x0.clone()
 
                     if alg == "confidence_threshold":
-                        current_transfer_tokens = int(current_transfer_tokens.item())
-                        if current_transfer_tokens <= 0:
-                            break
-                        selected_confidence, select_index = torch.topk(
-                            full_confidence, current_transfer_tokens
-                        )
                         transfer_index = torch.zeros_like(
                             x_, device=x.device, dtype=torch.bool
                         )
-
-                        select_index = select_index.to(x.device)
-                        transfer_index[0, select_index[0]] = True
-                        for k in range(1, current_transfer_tokens):
-                            if selected_confidence[0, k] < threshold:
-                                transfer_index[0, select_index[0, k]] = False
-                        x[:, current_block_start:end][transfer_index] = x_[
-                            transfer_index
-                        ]
+                        for row in range(B):
+                            current_transfer_tokens = int(block_mask_counts[row].item())
+                            if current_transfer_tokens <= 0:
+                                continue
+                            selected_confidence, select_index = torch.topk(
+                                full_confidence[row], current_transfer_tokens
+                            )
+                            transfer_index[row, select_index] = True
+                            for k in range(1, current_transfer_tokens):
+                                if selected_confidence[k] < threshold:
+                                    transfer_index[row, select_index[k]] = False
+                        transfer_index &= mask_index
+                        target = x[:, current_block_start:end]
+                        target[transfer_index] = x_[transfer_index]
 
                     else:
                         if inner_step == steps_per_block:
                             break
                         t = timesteps[inner_step]
                         s = timesteps[inner_step + 1]
-                        num_mask_token = mask_index.sum() / mask_index.shape[0]
-
-                        number_transfer_tokens = (
-                            int(num_mask_token * (1 - s / t))
-                            if inner_step < steps_per_block - 1
-                            else int(num_mask_token)
+                        transfer_index = torch.zeros_like(
+                            x_, device=x.device, dtype=torch.bool
                         )
-                        if number_transfer_tokens > 0:
+                        for row in range(B):
+                            row_mask_count = int(block_mask_counts[row].item())
+                            number_transfer_tokens = (
+                                int(row_mask_count * (1 - s / t))
+                                if inner_step < steps_per_block - 1
+                                else row_mask_count
+                            )
+                            if number_transfer_tokens <= 0:
+                                continue
                             if alg_temp is None or alg_temp == 0:
                                 _, select_index = torch.topk(
-                                    full_confidence, number_transfer_tokens
+                                    full_confidence[row], number_transfer_tokens
                                 )
                             else:
-                                fc = full_confidence / alg_temp
+                                fc = full_confidence[row] / alg_temp
                                 fc = F.softmax(fc, dim=-1)
                                 select_index = torch.multinomial(
                                     fc, num_samples=number_transfer_tokens
                                 )
+                            transfer_index[row, select_index] = True
 
-                            transfer_index = torch.zeros_like(
-                                x_, device=x.device, dtype=torch.bool
-                            )
-                            transfer_index.scatter_(1, select_index, True)
-
-                            transfer_index &= mask_index
-                            x[:, current_block_start:end][transfer_index] = x_[
-                                transfer_index
-                            ]
-
+                        transfer_index &= mask_index
+                        if transfer_index.any():
+                            target = x[:, current_block_start:end]
+                            target[transfer_index] = x_[transfer_index]
                             x = generation_tokens_hook_func(global_step, x, logits)
                     if histories is not None:
                         histories.append(x.clone())
