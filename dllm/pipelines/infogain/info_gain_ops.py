@@ -54,6 +54,25 @@ def validate_info_gain_variant(variant: str) -> None:
         )
 
 
+def normalize_cost_reduction(cost_reduction: str) -> str:
+    aliases = {
+        "sum": "sum",
+        "entropy": "sum",
+        "mean": "mean",
+        "avg": "mean",
+        "average": "mean",
+        "entropy*": "mean",
+        "entropy_star": "mean",
+    }
+    try:
+        return aliases[cost_reduction]
+    except KeyError as exc:
+        raise ValueError(
+            f"Unknown Info-Gain cost reduction {cost_reduction!r}; "
+            "expected 'sum' or 'mean' ('entropy*')."
+        ) from exc
+
+
 def compute_entropy(logits: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
     """Per-position Shannon entropy: [B, L, V] → [B, L]."""
     p = F.softmax(logits.float(), dim=-1).clamp(min=eps)
@@ -137,20 +156,31 @@ def score_candidates(
     actions: list,
     mask_id: int,
     variant: str = "info_gain",
+    cost_reduction: str = "sum",
+    cost_weight: float = 1.0,
+    future_weight: float = 1.0,
 ):
     """Return (C, H_next, J) per candidate; higher J is better."""
     validate_info_gain_variant(variant)
+    cost_reduction = normalize_cost_reduction(cost_reduction)
     ne = compute_entropy(next_logits)
     rm = x_batch == mask_id
     H_next = torch.where(rm, ne, ne.new_zeros(1)).sum(-1) / (rm.sum(-1).float() + 1e-10)
 
     if variant == "lookum":
-        J = -H_next
+        J = -future_weight * H_next
         C = H_next.new_zeros(H_next.shape)
     else:
         ce = compute_entropy(logits)
-        C = torch.stack([ce[0, a].sum() for a in actions])
-        J = -C - H_next
+        costs = []
+        for action in actions:
+            action_entropy = ce[0, action]
+            if cost_reduction == "mean":
+                costs.append(action_entropy.mean())
+            else:
+                costs.append(action_entropy.sum())
+        C = torch.stack(costs)
+        J = -cost_weight * C - future_weight * H_next
 
     return C, H_next, J
 

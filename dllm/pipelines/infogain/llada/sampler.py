@@ -31,6 +31,9 @@ class InfoGainLLaDASamplerConfig(FastdLLMLLaDASamplerConfig):
     candidate_number: int = 8
     position_temperature: float = 0.2
     variant: str = "info_gain"  # "info_gain" | "lookum"
+    info_gain_cost_reduction: str = "sum"  # "sum" | "mean" ("entropy*")
+    info_gain_cost_weight: float = 1.0
+    info_gain_future_weight: float = 1.0
 
 
 class InfoGainLLaDASampler(FastdLLMLLaDASampler):
@@ -75,6 +78,15 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
             "position_temperature", config.position_temperature
         )
         variant = kwargs.get("variant", config.variant)
+        info_gain_cost_reduction = kwargs.get(
+            "info_gain_cost_reduction", config.info_gain_cost_reduction
+        )
+        info_gain_cost_weight = float(
+            kwargs.get("info_gain_cost_weight", config.info_gain_cost_weight)
+        )
+        info_gain_future_weight = float(
+            kwargs.get("info_gain_future_weight", config.info_gain_future_weight)
+        )
 
         steps = int(steps)
         if steps < 1:
@@ -91,6 +103,9 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
                 f"got {position_temperature}"
             )
         ig.validate_info_gain_variant(variant)
+        info_gain_cost_reduction = ig.normalize_cost_reduction(
+            info_gain_cost_reduction
+        )
 
         mask_id = self.tokenizer.mask_token_id
         bos_id = self.tokenizer.bos_token_id
@@ -257,7 +272,15 @@ class InfoGainLLaDASampler(FastdLLMLLaDASampler):
                         )
 
                     _, _, J = ig.score_candidates(
-                        lx, next_logits, x_batch, actions, mask_id, variant
+                        lx,
+                        next_logits,
+                        x_batch,
+                        actions,
+                        mask_id,
+                        variant,
+                        cost_reduction=info_gain_cost_reduction,
+                        cost_weight=info_gain_cost_weight,
+                        future_weight=info_gain_future_weight,
                     )
                     best = int(J.argmax().item())
                     x_row = x[row].clone()

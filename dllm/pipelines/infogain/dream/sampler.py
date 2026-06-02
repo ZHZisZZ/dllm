@@ -85,6 +85,9 @@ class InfoGainDreamSamplerConfig(BaseSamplerConfig):
     candidate_number: int = 8
     position_temperature: float = 0.2
     info_gain_variant: str = "info_gain"  # "info_gain" | "lookum"
+    info_gain_cost_reduction: str = "sum"  # "sum" | "mean" ("entropy*")
+    info_gain_cost_weight: float = 1.0
+    info_gain_future_weight: float = 1.0
 
 
 @dataclass
@@ -129,6 +132,15 @@ class InfoGainDreamSampler(BaseSampler):
         info_gain_variant = kwargs.get(
             "info_gain_variant", config.info_gain_variant
         )
+        info_gain_cost_reduction = kwargs.get(
+            "info_gain_cost_reduction", config.info_gain_cost_reduction
+        )
+        info_gain_cost_weight = float(
+            kwargs.get("info_gain_cost_weight", config.info_gain_cost_weight)
+        )
+        info_gain_future_weight = float(
+            kwargs.get("info_gain_future_weight", config.info_gain_future_weight)
+        )
 
         if use_cache == "none":
             use_cache = None
@@ -151,6 +163,9 @@ class InfoGainDreamSampler(BaseSampler):
                 f"got {position_temperature}"
             )
         ig.validate_info_gain_variant(info_gain_variant)
+        info_gain_cost_reduction = ig.normalize_cost_reduction(
+            info_gain_cost_reduction
+        )
 
         # --- Initialization ---
         mask_token_id = self.tokenizer.mask_token_id
@@ -338,6 +353,9 @@ class InfoGainDreamSampler(BaseSampler):
                                 actions,
                                 mask_token_id,
                                 info_gain_variant,
+                                cost_reduction=info_gain_cost_reduction,
+                                cost_weight=info_gain_cost_weight,
+                                future_weight=info_gain_future_weight,
                             )
                             best = int(J.argmax().item())
                             act = actions[best]

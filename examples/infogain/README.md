@@ -56,6 +56,23 @@ python examples/infogain/llada/sample.py \
     --use_cache none --threshold 0.8 --candidate_number 8 --position_temperature 0.2 --variant info_gain
 ```
 
+The Info-Gain objective is weighted as
+`J = -cost_weight * C - future_weight * H_next`. By default,
+`cost_weight=1`, `future_weight=1`, and `C` is the sum of entropies over
+the decoded action. Set `info_gain_cost_reduction=mean` to use
+**entropy\***, i.e. the average entropy of the token(s) decoded by the
+current action. The mean reduction can be stronger than the default sum
+reduction in some settings, especially when comparing candidate actions with
+different decoded-token counts or under very small decoding-step budgets:
+
+```shell
+python examples/infogain/llada/sample.py \
+    --model_name_or_path "GSAI-ML/LLaDA-8B-Instruct" \
+    --use_cache none --threshold 0.8 --candidate_number 8 --position_temperature 0.2 \
+    --variant info_gain --info_gain_cost_reduction mean \
+    --info_gain_cost_weight 1.5 --info_gain_future_weight 1.0
+```
+
 Sampling with the Info-Gain Dream sampler (`use_cache none`, `alg=info_gain`; other `alg` values match Fast-dLLM Dream):
 
 ```shell
@@ -64,6 +81,10 @@ python examples/infogain/dream/sample.py \
     --model_name_or_path "Dream-org/Dream-v0-Instruct-7B" \
     --use_cache none --alg info_gain --threshold 0.8 --candidate_number 8
 ```
+
+Dream accepts the same Info-Gain weighting controls through
+`info_gain_cost_reduction`, `info_gain_cost_weight`, and
+`info_gain_future_weight`.
 
 ## Correctness smoke tests
 
@@ -114,7 +135,7 @@ python scripts/tests/test_infogain_real_inference.py \
 For example, to evaluate [LLaDA-8B-Instruct](https://huggingface.co/GSAI-ML/LLaDA-8B-Instruct) or [Dream-v0-Instruct-7B](https://huggingface.co/Dream-org/Dream-v0-Instruct-7B) on [GSM8K](https://huggingface.co/datasets/openai/gsm8k) with 4 GPUs, run:
 
 ```shell
-# Pass Info-Gain options via model_args (use_cache=none, threshold, candidate_number, position_temperature, variant, etc.).
+# Pass Info-Gain options via model_args (use_cache=none, threshold, candidate_number, position_temperature, variant, weighting, etc.).
 accelerate launch --num_processes 4 \
     dllm/pipelines/infogain/llada/eval.py \
     --tasks "gsm8k" \
@@ -143,6 +164,7 @@ Optional flags for `eval.sh`: `--max_new_tokens`, `--threshold`, `--candidate_nu
 
 ## Notes
 
-- **Batch size**: Info-Gain decoding for both LLaDA (`use_cache=none`) and Dream (`alg=info_gain` with `use_cache=none`) currently requires **batch size 1**. Keep per-process batch at 1 under multi-GPU `lm-eval` / `accelerate` runs.
+- **Batch size**: Info-Gain no-cache decoding supports batched inputs for both LLaDA (`use_cache=none`) and Dream (`alg=info_gain` with `use_cache=none`). The smoke tests also cover the Fast-dLLM-compatible prefix / dual cache paths.
+- **Objective weighting**: `info_gain_cost_reduction=sum` is the default and matches the original immediate cost. `info_gain_cost_reduction=mean` enables **entropy\***, the average entropy of the decoded action tokens. `info_gain_cost_weight` and `info_gain_future_weight` control the immediate-cost and future-uncertainty terms.
 - **LLaDA**: `use_cache=prefix` or `dual` uses the Fast-dLLM-style KV and parallel decode path inside the Info-Gain pipeline module (not the inner Info-Gain objective), useful for comparing against Fast-dLLM.
 - **Dream**: `alg=info_gain` is only active when **`use_cache=none`**; other settings follow the Dream sampler’s Fast-dLLM-compatible branches.

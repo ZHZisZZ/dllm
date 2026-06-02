@@ -61,6 +61,48 @@ def test_resolve_generation_lengths_validates_bounds() -> None:
         ig.resolve_generation_lengths(None, 3, 3)
 
 
+def test_info_gain_cost_reduction_supports_entropy_star() -> None:
+    logits = torch.zeros(1, 4, 4)
+    next_logits = torch.zeros(2, 4, 4)
+    x_batch = torch.ones(2, 4, dtype=torch.long)
+    actions = [torch.tensor([0, 1]), torch.tensor([2])]
+    token_entropy = torch.log(torch.tensor(4.0))
+
+    sum_cost, _, _ = ig.score_candidates(
+        logits,
+        next_logits,
+        x_batch,
+        actions,
+        mask_id=0,
+        cost_reduction="sum",
+        future_weight=0.0,
+    )
+    mean_cost, _, weighted_j = ig.score_candidates(
+        logits,
+        next_logits,
+        x_batch,
+        actions,
+        mask_id=0,
+        cost_reduction="entropy*",
+        cost_weight=2.0,
+        future_weight=0.0,
+    )
+
+    assert torch.allclose(sum_cost, torch.stack([2 * token_entropy, token_entropy]))
+    assert torch.allclose(mean_cost, torch.stack([token_entropy, token_entropy]))
+    assert torch.allclose(weighted_j, -2.0 * mean_cost)
+
+    with pytest.raises(ValueError, match="cost reduction"):
+        ig.score_candidates(
+            logits,
+            next_logits,
+            x_batch,
+            actions,
+            mask_id=0,
+            cost_reduction="bad",
+        )
+
+
 def test_llada_info_gain_supports_batched_no_cache() -> None:
     sampler = InfoGainLLaDASampler(model=TinyNoCacheModel(), tokenizer=TinyTokenizer())
     cfg = InfoGainLLaDASamplerConfig(
