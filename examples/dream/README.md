@@ -159,6 +159,8 @@ bash examples/dream/eval.sh --model_name_or_path "Dream-org/Dream-v0-Base-7B" --
 
 For **Fast-dLLM** sampling and evaluation with Dream, see the [Fast-dLLM README](../fastdllm/README.md).
 
+For **Info-Gain** sampling and evaluation with Dream, see the [Info-Gain README](../infogain/README.md).
+
 ### Evaluation results
 
 > Results (Reproduced) are evaluated using our framework, while results (Official) come from the original [paper](https://arxiv.org/abs/2508.15487). All evaluation settings follow the configurations in the [Dream](https://github.com/DreamLM/Dream) repository, with minor adjustments.

@@ -43,6 +43,8 @@ Simple Diffusion Language Modeling
 
 **[2026/02] ⚡[`Fast-dLLM`](https://github.com/NVlabs/Fast-dLLM)**: We support accelerated inference and evaluation of  [LLaDA](https://arxiv.org/abs/2502.09992) and [Dream](https://arxiv.org/abs/2508.15487) with [Fast-dLLM](https://arxiv.org/abs/2505.22618) (cache, confidence-threshold decoding). See [`examples/fastdllm`](/examples/fastdllm) for inference / evaluation instructions.
 
+**[2026/05] 📈[`Information-Gain-Sampler`](https://github.com/yks23/Information-Gain-Sampler)**: We support [Info-Gain decoding](https://arxiv.org/abs/2602.18176) (*Improving Sampling for Masked Diffusion Models via Information Gain*, **ICML 2026**) for [LLaDA](https://arxiv.org/abs/2502.09992) and [Dream](https://arxiv.org/abs/2508.15487) alongside Fast-dLLM-style KV cache on LLaDA. See [`examples/infogain`](/examples/infogain).
+
 **[2025/12] 🤗[`Tiny-A2D`](https://huggingface.co/collections/dllm-hub/tiny-a2d)**: We released a collection of **SOTA** small (0.5B/0.6B) diffusion models adapted from AR models, with fully open recipes for converting **ANY** AR model (e.g., Qwen, LLaMA, and GPT-2) into a diffusion model. See [`examples/a2d`](/examples/a2d) for training / inference / evaluation instructions.
 
 **[2025/11] 🤗[`BERT-Chat`](https://huggingface.co/collections/dllm-hub/bert-chat)**: We released a collection of BERTs finetuned to chat with diffusion, with open recipes for turning **ANY** BERT encoder (e.g., BERT, RoBERTa, ModernBERT) into a diffusion model. See [`examples/bert`](/examples/bert) for training / inference / evaluation instructions.
@@ -88,6 +90,7 @@ Simple Diffusion Language Modeling
 
    </details> -->
 - [`examples/fastdllm`](/examples/fastdllm): Inferencing and evaluating [LLaDA](https://arxiv.org/abs/2502.09992) and [Dream](https://arxiv.org/abs/2508.15487) with [Fast-dLLM](https://arxiv.org/abs/2505.22618) (cache, confidence-threshold decoding, and beyond).
+- [`examples/infogain`](/examples/infogain): Inferencing and evaluating LLaDA and Dream with [Information-Gain sampling](https://arxiv.org/abs/2602.18176) (**ICML 2026**; see [upstream repo](https://github.com/yks23/Information-Gain-Sampler)).
 - [`examples/rl`](/examples/rl): [GRPO](https://github.com/dllm-reasoning/d1) training for [LLaDA](https://arxiv.org/abs/2502.09992) and [Tiny-A2D](https://huggingface.co/collections/dllm-hub/tiny-a2d) diffusion language models across reasoning tasks (GSM8K, MATH, Countdown, Sudoku, Code).
 - More upcoming.
 
@@ -146,6 +149,7 @@ dllm
 │   ├── dream
 │   ├── editflow
 │   ├── fastdllm
+│   ├── infogain
 │   ├── llada
 │   │   ├── models         # Model architecture and configs 
 │   │   ├── sampler.py     # Inference module
@@ -164,6 +168,7 @@ examples
 ├── dream
 ├── editflow
 ├── fastdllm
+├── infogain
 ├── llada
 │   ├── chat.py            # Interactive inference example
 │   ├── sample.py          # Inference example
@@ -322,6 +327,12 @@ You can accelerate inference of [LLaDA](https://arxiv.org/abs/2502.09992) and [D
 python examples/fastdllm/llada/sample.py --model_name_or_path "GSAI-ML/LLaDA-8B-Instruct" --use_cache prefix --threshold 0.9
 ```
 
+You can run [Information-Gain](https://arxiv.org/abs/2602.18176) sampling via [`examples/infogain`](/examples/infogain):
+```shell
+python examples/infogain/llada/sample.py --model_name_or_path "GSAI-ML/LLaDA-8B-Instruct" --use_cache none --threshold 0.8 --candidate_number 8
+python examples/infogain/dream/sample.py --model_name_or_path "Dream-org/Dream-v0-Instruct-7B" --use_cache none --alg info_gain --threshold 0.8
+```
+
 <p align="center">
     <img src="/assets/chat.gif" alt="chat" width="80%">
 </p>
@@ -352,6 +363,12 @@ We provide scripts to evaluate [LLaDA](https://arxiv.org/abs/2502.09992) and [Dr
 ```shell
 bash examples/fastdllm/llada/eval.sh --model_name_or_path "GSAI-ML/LLaDA-8B-Instruct" --instruct True --num_gpu 1
 bash examples/fastdllm/dream/eval.sh --model_name_or_path "Dream-org/Dream-v0-Base-7B" --instruct False --num_gpu 1
+```
+
+Scripts for [Information-Gain](https://arxiv.org/abs/2602.18176) evaluation:
+```shell
+bash examples/infogain/llada/eval.sh --model_name_or_path "GSAI-ML/LLaDA-8B-Instruct" --instruct True --num_gpu 1
+bash examples/infogain/dream/eval.sh --model_name_or_path "Dream-org/Dream-v0-Base-7B" --instruct False --num_gpu 1
 ```
 
 

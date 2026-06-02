@@ -1,27 +1,17 @@
 """
-Pipeline namespace with lazy submodule loading.
+Info-Gain masked diffusion sampling (LLaDA + Dream).
 
-This keeps `dllm.pipelines.fastdllm` / `dllm.pipelines.infogain` style access
-working without importing every optional pipeline dependency at package import
-time.
+Upstream reference: https://github.com/yks23/Information-Gain-Sampler
+
+Run import check:
+    python -c "import dllm.pipelines.infogain as ig; print(ig.__all__)"
 """
 
 from __future__ import annotations
 
 from importlib import import_module
 
-__all__ = [
-    "a2d",
-    "bert",
-    "dream",
-    "editflow",
-    "fastdllm",
-    "infogain",
-    "llada",
-    "llada2",
-    "llada21",
-    "rl",
-]
+__all__ = ["dream", "llada"]
 
 
 def __getattr__(name: str):
