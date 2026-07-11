@@ -6,7 +6,7 @@ accelerate launch \
     --model diffusiongemma \
     --apply_chat_template \
     --num_fewshot 5 \
-    --model_args "pretrained=/mnt/weka/shrd/research/model/diffusiongemma-26B-A4B-it,max_new_tokens=512,block_size=256,max_denoising_steps=48,entropy_bound=0.1,dtype=bfloat16"
+    --model_args "pretrained=/mnt/weka/shrd/research/model/diffusiongemma-26B-A4B-it,max_new_tokens=512,steps=48,entropy_bound=0.1,dtype=bfloat16"
 """
 
 from __future__ import annotations
@@ -82,8 +82,7 @@ class DiffusionGemmaEvalSamplerConfig(DiffusionGemmaSamplerConfig):
     """Default sampler config for DiffusionGemma eval."""
 
     max_new_tokens: int = 256
-    block_size: int = 256
-    max_denoising_steps: int = 48
+    steps: int = 48
     entropy_bound: float = 0.1
     entropy_threshold: float = 0.005
     stability_threshold: int = 1
@@ -363,8 +362,8 @@ class DiffusionGemmaEvalHarness(LM):
             "new_valid_tokens": new_valid_tokens,
             "answer_chars": len(answer),
             "max_gen_toks": int(max_gen_toks),
-            "block_size": int(self.sampler_config.block_size),
-            "max_denoising_steps": int(self.sampler_config.max_denoising_steps),
+            "canvas_length": int(self.model.config.canvas_length),
+            "steps": int(self.sampler_config.steps),
             "tokens_per_forward": tokens_per_forward,
             "decoder_forward_passes": decoder_forward_passes,
             "denoising_forwards_per_valid_token": (

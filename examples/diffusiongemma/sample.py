@@ -63,8 +63,7 @@ class ScriptArguments:
 @dataclass
 class SamplerConfig(DiffusionGemmaSamplerConfig):
     max_new_tokens: int = 128
-    block_size: int = 256
-    max_denoising_steps: int = 48
+    steps: int = 48
     entropy_bound: float = 0.1
     entropy_threshold: float = 0.005
     stability_threshold: int = 1
