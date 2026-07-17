@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Evaluation Protocol · dLLM Diffusion Leaderboard</title>
+  <meta name="description" content="Shared evaluation, scoring, TPF, and throughput protocol for the dLLM Diffusion Leaderboard.">
+  <link rel="icon" href="logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&amp;family=Urbanist:wght@400;500;600;650;700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #faf4e8;
+      --panel: rgba(255, 252, 246, 0.72);
+      --cream: #fffaf1;
+      --ink: #453d33;
+      --muted: #7c7063;
+      --line: rgba(60, 48, 36, 0.18);
+      --line-soft: rgba(60, 48, 36, 0.10);
+      --accent: #b95f3d;
+      --accent-dark: #90462f;
+      --accent-soft: #f3d8c6;
+      --shadow: 0 22px 70px rgba(83, 58, 34, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 92px; }
+    body {
+      min-width: 320px;
+      margin: 0;
+      background:
+        radial-gradient(circle at 78% 4%, rgba(228, 157, 119, 0.17), transparent 27rem),
+        radial-gradient(circle at 14% 15%, rgba(255, 255, 255, 0.72), transparent 30rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: "Urbanist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 500;
+    }
+    a { color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 70px;
+      padding: 12px max(28px, calc((100vw - 1040px) / 2));
+      border-bottom: 1px solid var(--line-soft);
+      background: rgba(250, 244, 232, 0.84);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; }
+    .brand-mark { width: 76px; height: 30px; object-fit: contain; }
+    .brand-name { padding-left: 11px; border-left: 1px solid var(--line); font-size: 14px; font-weight: 750; white-space: nowrap; }
+    .back-link {
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.28);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: background-color 160ms ease, transform 160ms ease;
+    }
+    .back-link:hover { background: var(--cream); transform: translateY(-1px); }
+
+    main { width: min(1040px, calc(100% - 56px)); margin: 0 auto; padding: 76px 0 86px; }
+    .hero { padding-bottom: 48px; border-bottom: 1px solid var(--line); }
+    .kicker { margin: 0 0 18px; color: var(--accent-dark); font-size: 12px; font-weight: 750; letter-spacing: 0.23em; text-transform: uppercase; }
+    h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 400; letter-spacing: -0.025em; }
+    h1 { max-width: 790px; margin: 0; font-size: clamp(50px, 7vw, 80px); line-height: 0.98; }
+    .hero-copy { max-width: 760px; margin: 25px 0 0; color: var(--muted); font-size: 18px; line-height: 1.6; }
+    .layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 56px; align-items: start; margin-top: 58px; }
+    .toc { position: sticky; top: 100px; display: grid; gap: 5px; }
+    .toc-label { margin: 0 0 8px; color: var(--accent-dark); font-size: 10px; font-weight: 750; letter-spacing: 0.18em; text-transform: uppercase; }
+    .toc a { padding: 6px 0; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: none; }
+    .toc a:hover { color: var(--accent-dark); }
+
+    .content { min-width: 0; }
+    .protocol-section { padding: 0 0 54px; scroll-margin-top: 100px; }
+    .protocol-section + .protocol-section { padding-top: 48px; border-top: 1px solid var(--line); }
+    h2 { margin: 0 0 18px; font-size: clamp(31px, 4vw, 43px); line-height: 1.05; }
+    h3 { margin: 28px 0 10px; font-size: 23px; }
+    p { margin: 0 0 15px; line-height: 1.65; }
+    ul, ol { margin: 14px 0 19px; padding-left: 21px; }
+    li { margin: 8px 0; line-height: 1.55; }
+    code { padding: 2px 6px; border-radius: 6px; background: #eee3d4; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+    .muted { color: var(--muted); }
+
+    .method-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 22px 0; }
+    .method-card { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+    .method-card strong { display: block; margin-bottom: 7px; color: var(--accent-dark); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .method-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.52; }
+    .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 22px 0; }
+    .metric-card { padding: 21px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
+    .metric-card h3 { margin: 0 0 10px; font-size: 22px; }
+    .metric-card p:last-child { margin-bottom: 0; }
+    .metric-tag { display: inline-flex; margin-bottom: 14px; padding: 5px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-size: 9px; font-weight: 750; letter-spacing: 0.11em; text-transform: uppercase; }
+
+    .table-wrap { margin: 21px 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
+    table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 13px 15px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: top; line-height: 1.5; }
+    th { background: #eee4d6; color: #716557; font-size: 10px; font-weight: 750; letter-spacing: 0.09em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+
+    .protocol-note { margin: 22px 0; padding: 17px 19px; border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; background: rgba(255, 252, 246, 0.52); color: #665b50; }
+    .protocol-note a { color: var(--accent-dark); font-weight: 700; text-underline-offset: 3px; }
+    .runtime-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 20px 0; }
+    .runtime-link { display: block; padding: 15px 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); color: var(--accent-dark); font-size: 13px; font-weight: 680; line-height: 1.4; text-decoration: none; }
+    .runtime-link span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 520; }
+    .runtime-link:hover { background: var(--cream); }
+    .sources { display: grid; gap: 9px; margin-top: 20px; }
+    .sources a { display: inline-flex; width: fit-content; color: var(--accent-dark); font-weight: 650; text-underline-offset: 3px; }
+    .page-footer { display: flex; justify-content: space-between; gap: 26px; padding-top: 30px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .page-footer a { color: var(--accent-dark); font-weight: 650; text-underline-offset: 3px; }
+
+    @media (max-width: 760px) {
+      .topbar { min-height: 62px; padding: 10px 18px; }
+      .brand-name { display: none; }
+      main { width: min(100% - 34px, 680px); padding-top: 54px; }
+      .layout { grid-template-columns: 1fr; gap: 42px; }
+      .toc { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
+      .toc-label { grid-column: 1 / -1; }
+      .method-list, .metric-grid, .runtime-links { grid-template-columns: 1fr; }
+      .page-footer { display: grid; }
+    }
+
+    @media (max-width: 420px) {
+      h1 { font-size: 46px; }
+      .back-link { padding: 7px 11px; font-size: 12px; }
+      .toc { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition-duration: 0.01ms !important; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="dLLM Diffusion Leaderboard">
+      <img class="brand-mark" src="logo.png" alt="dLLM">
+      <span class="brand-name">Diffusion Leaderboard</span>
+    </a>
+    <a class="back-link" href="index.html">← Back to leaderboard</a>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="kicker">Evaluation methodology</p>
+        <h1 id="page-title">Evaluation protocol.</h1>
+        <p class="hero-copy">The shared task, scoring, and efficiency rules used to evaluate diffusion language models on the dLLM leaderboard.</p>
+      </div>
+    </section>
+
+    <div class="layout">
+      <nav class="toc" aria-label="Protocol sections">
+        <p class="toc-label">On this page</p>
+        <a href="#workflow">Shared workflow</a>
+        <a href="#scoring">Scoring rules</a>
+        <a href="#efficiency">TPF &amp; throughput</a>
+        <a href="#reporting">Run record</a>
+        <a href="#sources">References</a>
+      </nav>
+
+      <article class="content">
+        <section class="protocol-section" id="workflow">
+          <h2>Shared evaluation workflow</h2>
+          <div class="method-list">
+            <article class="method-card"><strong>Fixed task definition</strong><p>Select and record the pinned task variant, including its dataset split, prompt or chat template, few-shot context, stop sequences, answer filter, and scorer.</p></article>
+            <article class="method-card"><strong>Recommended decoding</strong><p>Use the configuration recommended by the official repository or paper, or the best-performing configuration reported there. Freeze it before test scoring and never select the best run after viewing test results.</p></article>
+            <article class="method-card"><strong>Shared hardware</strong><p>Run all evaluation and efficiency experiments reported here on NVIDIA H200 GPUs, with the accelerator count retained in the run record.</p></article>
+            <article class="method-card"><strong>Native evaluation</strong><p>Score one response per example unless the task declares repeats or multiple candidates, then apply the task’s extraction, normalization, and native evaluator.</p></article>
+          </div>
+          <p class="protocol-note">The pinned lm-evaluation-harness submodule defines benchmark-side task configuration. Any model-specific prompt or few-shot variant is recorded with the result. <a href="https://github.com/ZHZisZZ/lm-evaluation-harness/tree/dca091dbee3d6ee1dab268e9f649aa64e8db97d8/lm_eval/tasks">View task configurations →</a></p>
+        </section>
+
+        <section class="protocol-section" id="scoring">
+          <h2>Shared scoring rules</h2>
+          <div class="metric-grid">
+            <article class="metric-card"><span class="metric-tag">Reasoning &amp; QA</span><h3>Exact match</h3><p>Generated answers are extracted and normalized before comparison with the reference answer. Mathematical tasks may additionally use symbolic equivalence.</p></article>
+            <article class="metric-card"><span class="metric-tag">Multiple choice</span><h3>Accuracy</h3><p>The extracted option is compared with the gold label. Tasks may report raw accuracy or length-normalized accuracy as declared by the harness.</p></article>
+            <article class="metric-card"><span class="metric-tag">Code</span><h3>pass@1</h3><p>For the checked-in MBPP task, one generated program is executed against the supplied unit tests. The attempt passes only when all required tests pass.</p></article>
+            <article class="metric-card"><span class="metric-tag">Instruction &amp; agents</span><h3>Native success rate</h3><p>IFEval uses its strict and loose instruction-following checks. Agentic tasks use their benchmark-provided verifier or final-state success rule.</p></article>
+          </div>
+          <h3>Repeated runs and pass@k</h3>
+          <p>Unless a task declares repeats or multiple candidates, one response is scored for each example. For repeated evaluations, every problem–repeat attempt is scored independently and the results are averaged over the benchmark. <code>pass@k</code> applies only to code tasks that sample multiple independent candidates and asks whether at least one of the <code>k</code> candidates passes. The current MBPP configuration reports <code>pass@1</code>; averaging repeated <code>pass@1</code> results does not create a <code>pass@k</code> score.</p>
+        </section>
+
+        <section class="protocol-section" id="efficiency">
+          <h2>TPF and throughput</h2>
+          <h3>Tokens per forward pass (TPF)</h3>
+          <p>TPF measures how many realized output tokens a diffusion decoder advances per generation-time model evaluation. Across a benchmark, it is calculated as the total number of valid generated output tokens divided by the total number of denoiser forward evaluations (NFE), using summed counters rather than an average of per-example ratios.</p>
+          <ul>
+            <li>Prompt tokens and padding are excluded from the numerator.</li>
+            <li>Early stopping uses the actual output length before EOS, not the maximum canvas length.</li>
+            <li>Rejected or re-noised positions do not count as output tokens, while the forward evaluations used to process them remain in NFE.</li>
+          </ul>
+          <h3>Output throughput (token/s)</h3>
+          <p>Throughput runs use the model-specific SGLang serving implementation after warm-up. The reported calculation depends on the serving workload:</p>
+          <ul>
+            <li>At concurrency 1, completion tokens are divided by the full request latency and the median is reported across repeated requests.</li>
+            <li>Under concurrent serving, all successful completion tokens are divided by the full benchmark wall-clock duration, with concurrency reported alongside the result.</li>
+          </ul>
+          <p>DiffusionGemma and Nemotron Diffusion both provide model-specific SGLang serving paths for throughput measurement. Their upstream integration status differs, so every run records the exact implementation revision rather than relying only on an SGLang version label.</p>
+          <div class="runtime-links">
+            <a class="runtime-link" href="https://github.com/sgl-project/sglang/pull/27823">DiffusionGemma · SGLang reference runtime<span>Model runtime and diffusion sampler implementation →</span></a>
+            <a class="runtime-link" href="https://github.com/NVlabs/Nemotron-Labs-Diffusion/tree/main/sglang_spark">Nemotron Diffusion · SGLang reference runtime<span>Model-specific deployment and serving path →</span></a>
+            <a class="runtime-link" href="https://github.com/sgl-project/sglang/blob/main/docs/developer_guide/bench_serving.md">SGLang benchmark protocol<span>Output throughput, latency, warm-up, and run output →</span></a>
+          </div>
+          <p class="protocol-note">TPF measures decoding parallelism; token/s measures elapsed serving performance. They answer different questions and are never converted into one another.</p>
+        </section>
+
+        <section class="protocol-section" id="reporting">
+          <h2>Required run record</h2>
+          <div class="table-wrap" role="region" aria-label="Required evaluation run fields" tabindex="0">
+            <table>
+              <thead><tr><th>Area</th><th>Required fields</th></tr></thead>
+              <tbody>
+                <tr><td>Model</td><td>Checkpoint and tokenizer revision, chat template, decoding mode, sampler parameters, maximum output length.</td></tr>
+                <tr><td>Evaluation</td><td>Task-config commit, dataset revision and split, few-shot count, repeat count, answer filter, scorer, raw machine-readable output.</td></tr>
+                <tr><td>Efficiency</td><td>Serving backend and commit, GPU model and count, dtype or quantization, batch size or concurrency, input/output lengths, warm-up count, timed repeats, token-counting rule, timing boundary.</td></tr>
+                <tr><td>Statistics</td><td>Number of measured runs and the reported summary statistic; repeated timing runs should report at least the median.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted">An em dash on the leaderboard means that no value is available. It is never interpreted as zero.</p>
+        </section>
+
+        <section class="protocol-section" id="sources">
+          <h2>Implementation references</h2>
+          <div class="sources">
+            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/README.md#evaluation">README · evaluation entry point ↗</a>
+            <a href="https://github.com/ZHZisZZ/lm-evaluation-harness/tree/dca091dbee3d6ee1dab268e9f649aa64e8db97d8/lm_eval/tasks">Pinned lm-evaluation-harness tasks ↗</a>
+            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/examples/llada/eval.sh">LLaDA evaluation launcher ↗</a>
+            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/examples/dream/eval.sh">Dream evaluation launcher ↗</a>
+            <a href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/diffusion_gemma/generation_diffusion_gemma.py">DiffusionGemma · TPF counters and generation ↗</a>
+            <a href="https://github.com/NVlabs/Nemotron-Labs-Diffusion/blob/main/evaluate.py">Nemotron Diffusion · evaluation and NFE counters ↗</a>
+          </div>
+        </section>
+      </article>
+    </div>
+
+    <footer class="page-footer">
+      <span>dLLM · evaluation protocol</span>
+      <a href="index.html">Return to the leaderboard →</a>
+    </footer>
+  </main>
+</body>
+</html>
