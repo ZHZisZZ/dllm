@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Evaluation Protocol · dLLM Diffusion Leaderboard</title>
-  <meta name="description" content="Evaluation protocol, metric definitions, provenance, and known limitations for the dLLM Diffusion Leaderboard.">
+  <meta name="description" content="Shared evaluation, scoring, TPF, and throughput protocol for the dLLM Diffusion Leaderboard.">
   <link rel="icon" href="logo.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Urbanist:wght@400;500;600;650;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&amp;family=Urbanist:wght@400;500;600;650;700;800&amp;display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #faf4e8;
@@ -72,41 +72,12 @@
     .back-link:hover { background: var(--cream); transform: translateY(-1px); }
 
     main { width: min(1040px, calc(100% - 56px)); margin: 0 auto; padding: 76px 0 86px; }
-    .hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 44px; padding-bottom: 48px; border-bottom: 1px solid var(--line); }
+    .hero { padding-bottom: 48px; border-bottom: 1px solid var(--line); }
     .kicker { margin: 0 0 18px; color: var(--accent-dark); font-size: 12px; font-weight: 750; letter-spacing: 0.23em; text-transform: uppercase; }
     h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 400; letter-spacing: -0.025em; }
     h1 { max-width: 790px; margin: 0; font-size: clamp(50px, 7vw, 80px); line-height: 0.98; }
     .hero-copy { max-width: 760px; margin: 25px 0 0; color: var(--muted); font-size: 18px; line-height: 1.6; }
-    .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 13px;
-      border: 1px solid rgba(144, 70, 47, 0.22);
-      border-radius: 999px;
-      background: var(--accent-soft);
-      color: var(--accent-dark);
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-    .status::before { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); content: ""; }
-
-    .notice {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 16px;
-      margin: 34px 0 54px;
-      padding: 20px 22px;
-      border: 1px solid rgba(144, 70, 47, 0.22);
-      border-radius: 14px;
-      background: rgba(243, 216, 198, 0.54);
-    }
-    .notice-mark { color: var(--accent-dark); font-family: "Fraunces", Georgia, serif; font-size: 28px; line-height: 1; }
-    .notice strong { display: block; margin-bottom: 5px; color: var(--accent-dark); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
-    .notice p { margin: 0; line-height: 1.55; }
-
-    .layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 56px; align-items: start; }
+    .layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 56px; align-items: start; margin-top: 58px; }
     .toc { position: sticky; top: 100px; display: grid; gap: 5px; }
     .toc-label { margin: 0 0 8px; color: var(--accent-dark); font-size: 10px; font-weight: 750; letter-spacing: 0.18em; text-transform: uppercase; }
     .toc a { padding: 6px 0; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: none; }
@@ -114,7 +85,7 @@
 
     .content { min-width: 0; }
     .protocol-section { padding: 0 0 54px; scroll-margin-top: 100px; }
-    .section-number { display: block; margin-bottom: 9px; color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: 0.16em; }
+    .protocol-section + .protocol-section { padding-top: 48px; border-top: 1px solid var(--line); }
     h2 { margin: 0 0 18px; font-size: clamp(31px, 4vw, 43px); line-height: 1.05; }
     h3 { margin: 28px 0 10px; font-size: 23px; }
     p { margin: 0 0 15px; line-height: 1.65; }
@@ -123,14 +94,15 @@
     code { padding: 2px 6px; border-radius: 6px; background: #eee3d4; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
     .muted { color: var(--muted); }
 
-    .definition-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 21px 0; }
-    .definition-card { padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-    .definition-card strong { display: block; margin-bottom: 7px; color: var(--accent-dark); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
-    .definition-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-
-    .formula { margin: 20px 0; padding: 20px 22px; border: 1px solid var(--line); border-radius: 13px; background: var(--cream); }
-    .formula-label { margin-bottom: 8px; color: var(--accent-dark); font-size: 10px; font-weight: 750; letter-spacing: 0.17em; text-transform: uppercase; }
-    .formula-main { font-family: "Fraunces", Georgia, serif; font-size: 22px; line-height: 1.35; }
+    .method-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 22px 0; }
+    .method-card { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+    .method-card strong { display: block; margin-bottom: 7px; color: var(--accent-dark); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .method-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.52; }
+    .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 22px 0; }
+    .metric-card { padding: 21px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
+    .metric-card h3 { margin: 0 0 10px; font-size: 22px; }
+    .metric-card p:last-child { margin-bottom: 0; }
+    .metric-tag { display: inline-flex; margin-bottom: 14px; padding: 5px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-size: 9px; font-weight: 750; letter-spacing: 0.11em; text-transform: uppercase; }
 
     .table-wrap { margin: 21px 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
     table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 13px; }
@@ -138,8 +110,12 @@
     th { background: #eee4d6; color: #716557; font-size: 10px; font-weight: 750; letter-spacing: 0.09em; text-transform: uppercase; }
     tr:last-child td { border-bottom: 0; }
 
-    .benchmark-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 24px; }
-    .benchmark-list span { padding: 6px 10px; border: 1px solid var(--line-soft); border-radius: 999px; background: rgba(255, 252, 246, 0.6); color: var(--muted); font-size: 12px; font-weight: 620; }
+    .protocol-note { margin: 22px 0; padding: 17px 19px; border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; background: rgba(255, 252, 246, 0.52); color: #665b50; }
+    .protocol-note a { color: var(--accent-dark); font-weight: 700; text-underline-offset: 3px; }
+    .runtime-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 20px 0; }
+    .runtime-link { display: block; padding: 15px 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); color: var(--accent-dark); font-size: 13px; font-weight: 680; line-height: 1.4; text-decoration: none; }
+    .runtime-link span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 520; }
+    .runtime-link:hover { background: var(--cream); }
     .sources { display: grid; gap: 9px; margin-top: 20px; }
     .sources a { display: inline-flex; width: fit-content; color: var(--accent-dark); font-weight: 650; text-underline-offset: 3px; }
     .page-footer { display: flex; justify-content: space-between; gap: 26px; padding-top: 30px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
@@ -149,19 +125,16 @@
       .topbar { min-height: 62px; padding: 10px 18px; }
       .brand-name { display: none; }
       main { width: min(100% - 34px, 680px); padding-top: 54px; }
-      .hero { grid-template-columns: 1fr; align-items: start; gap: 24px; }
-      .status { width: fit-content; }
       .layout { grid-template-columns: 1fr; gap: 42px; }
       .toc { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
       .toc-label { grid-column: 1 / -1; }
-      .definition-grid { grid-template-columns: 1fr; }
+      .method-list, .metric-grid, .runtime-links { grid-template-columns: 1fr; }
       .page-footer { display: grid; }
     }
 
     @media (max-width: 420px) {
       h1 { font-size: 46px; }
       .back-link { padding: 7px 11px; font-size: 12px; }
-      .notice { grid-template-columns: 1fr; }
       .toc { grid-template-columns: 1fr; }
     }
 
@@ -180,164 +153,102 @@
   <main>
     <section class="hero" aria-labelledby="page-title">
       <div>
-        <p class="kicker">Methodology &amp; provenance</p>
+        <p class="kicker">Evaluation methodology</p>
         <h1 id="page-title">Evaluation protocol.</h1>
-        <p class="hero-copy">How scores are collected, interpreted, and compared across the dLLM Diffusion Leaderboard—and where the current evidence is still incomplete.</p>
+        <p class="hero-copy">The shared task, scoring, and efficiency rules used to evaluate diffusion language models on the dLLM leaderboard.</p>
       </div>
-      <div class="status">Draft v0.1 · 2026-07-16</div>
     </section>
-
-    <aside class="notice" aria-label="Comparability warning">
-      <div class="notice-mark" aria-hidden="true">!</div>
-      <div>
-        <strong>Comparability warning</strong>
-        <p>This leaderboard combines repository-reproduced and externally reported results. Treat two results as directly comparable only when task revision, prompt and few-shot setup, model revision, decoding configuration, harness commit, and hardware match.</p>
-      </div>
-    </aside>
 
     <div class="layout">
       <nav class="toc" aria-label="Protocol sections">
         <p class="toc-label">On this page</p>
-        <a href="#scope">Scope &amp; provenance</a>
-        <a href="#stack">Execution stack</a>
-        <a href="#benchmarks">Benchmark setup</a>
-        <a href="#metrics">Metrics</a>
-        <a href="#throughput">TPF &amp; token/s</a>
-        <a href="#missing">Missing values</a>
-        <a href="#manifest">Required manifest</a>
-        <a href="#limitations">Limitations</a>
-        <a href="#sources">Source files</a>
+        <a href="#workflow">Shared workflow</a>
+        <a href="#scoring">Scoring rules</a>
+        <a href="#efficiency">TPF &amp; throughput</a>
+        <a href="#reporting">Run record</a>
+        <a href="#sources">References</a>
       </nav>
 
       <article class="content">
-        <section class="protocol-section" id="scope">
-          <span class="section-number">01</span>
-          <h2>Scope and provenance</h2>
-          <p>Every leaderboard cell should ultimately carry one of three provenance states. The current interface does not yet expose these labels per cell, so this document records the boundary explicitly.</p>
-          <div class="definition-grid">
-            <article class="definition-card"><strong>Repo-reproduced</strong><p>Run from this repository with a preserved command, model revision, harness revision, and output artifact.</p></article>
-            <article class="definition-card"><strong>Reported</strong><p>Copied from an external model card, paper, or contributor submission. It has not necessarily been rerun here.</p></article>
-            <article class="definition-card"><strong>Unresolved</strong><p>A displayed value whose complete run manifest or original result artifact is not stored in this branch.</p></article>
+        <section class="protocol-section" id="workflow">
+          <h2>Shared evaluation workflow</h2>
+          <div class="method-list">
+            <article class="method-card"><strong>Fixed task definition</strong><p>Select and record the pinned task variant, including its dataset split, prompt or chat template, few-shot context, stop sequences, answer filter, and scorer.</p></article>
+            <article class="method-card"><strong>Recommended decoding</strong><p>Use the configuration recommended by the official repository or paper, or the best-performing configuration reported there. Freeze it before test scoring and never select the best run after viewing test results.</p></article>
+            <article class="method-card"><strong>Shared hardware</strong><p>Run all evaluation and efficiency experiments reported here on NVIDIA H200 GPUs, with the accelerator count retained in the run record.</p></article>
+            <article class="method-card"><strong>Native evaluation</strong><p>Score one response per example unless the task declares repeats or multiple candidates, then apply the task’s extraction, normalization, and native evaluator.</p></article>
           </div>
-          <p>The branch contains evaluation launchers for LLaDA and Dream, but no complete result manifest for every displayed cell. DiffusionGemma, Nemotron Diffusion, and the agentic benchmarks also lack local launch manifests in this branch; those entries should therefore be read as reported or unresolved until their provenance is attached.</p>
+          <p class="protocol-note">The pinned lm-evaluation-harness submodule defines benchmark-side task configuration. Any model-specific prompt or few-shot variant is recorded with the result. <a href="https://github.com/ZHZisZZ/lm-evaluation-harness/tree/dca091dbee3d6ee1dab268e9f649aa64e8db97d8/lm_eval/tasks">View task configurations →</a></p>
         </section>
 
-        <section class="protocol-section" id="stack">
-          <span class="section-number">02</span>
-          <h2>Execution stack</h2>
-          <p>The reproducible path in this repository is built around dLLM and its fork of <code>lm-evaluation-harness</code>. The pinned submodule commit for this branch is <code>dca091dbee3d6ee1dab268e9f649aa64e8db97d8</code>.</p>
-          <ol>
-            <li>Launch evaluation through Accelerate and a model-specific dLLM pipeline.</li>
-            <li>Load the model in evaluation mode and tokenize each harness prompt.</li>
-            <li>Apply the tokenizer chat template when the selected instruct configuration requests it.</li>
-            <li>Generate with the model sampler and its declared steps, block size, cache, guidance, and length settings.</li>
-            <li>Trim generated tokens, apply harness stop sequences, and let the task implementation score the resulting answer.</li>
-          </ol>
-          <p class="muted">This describes the repository execution path. It does not prove that every number currently shown on the leaderboard was produced through that path.</p>
+        <section class="protocol-section" id="scoring">
+          <h2>Shared scoring rules</h2>
+          <div class="metric-grid">
+            <article class="metric-card"><span class="metric-tag">Reasoning &amp; QA</span><h3>Exact match</h3><p>Generated answers are extracted and normalized before comparison with the reference answer. Mathematical tasks may additionally use symbolic equivalence.</p></article>
+            <article class="metric-card"><span class="metric-tag">Multiple choice</span><h3>Accuracy</h3><p>The extracted option is compared with the gold label. Tasks may report raw accuracy or length-normalized accuracy as declared by the harness.</p></article>
+            <article class="metric-card"><span class="metric-tag">Code</span><h3>pass@1</h3><p>For the checked-in MBPP task, one generated program is executed against the supplied unit tests. The attempt passes only when all required tests pass.</p></article>
+            <article class="metric-card"><span class="metric-tag">Instruction &amp; agents</span><h3>Native success rate</h3><p>IFEval uses its strict and loose instruction-following checks. Agentic tasks use their benchmark-provided verifier or final-state success rule.</p></article>
+          </div>
+          <h3>Repeated runs and pass@k</h3>
+          <p>Unless a task declares repeats or multiple candidates, one response is scored for each example. For repeated evaluations, every problem–repeat attempt is scored independently and the results are averaged over the benchmark. <code>pass@k</code> applies only to code tasks that sample multiple independent candidates and asks whether at least one of the <code>k</code> candidates passes. The current MBPP configuration reports <code>pass@1</code>; averaging repeated <code>pass@1</code> results does not create a <code>pass@k</code> score.</p>
         </section>
 
-        <section class="protocol-section" id="benchmarks">
-          <span class="section-number">03</span>
-          <h2>Benchmarks and configuration</h2>
-          <h3>General suite · 18 columns</h3>
-          <div class="benchmark-list" aria-label="General benchmarks"><span>GSM8K</span><span>MATH</span><span>AIME-24</span><span>AIME-25</span><span>AIME-26</span><span>MBPP</span><span>LCBv6</span><span>GPQA</span><span>HLE</span><span>SciCode</span><span>MMLU</span><span>MMLU-Pro</span><span>ARC-C</span><span>HellaSwag</span><span>BBH</span><span>IFEval</span><span>CEval</span><span>CMMLU</span></div>
-          <h3>Agentic suite · 7 columns</h3>
-          <div class="benchmark-list" aria-label="Agentic benchmarks"><span>AA Omni</span><span>AA LCR</span><span>IFBench</span><span>Tau2 Telecom</span><span>Tau2 Airline</span><span>Tau2 Retail</span><span>Terminal-Bench v2.1</span></div>
-          <p>Benchmark names alone are not enough to guarantee a matched evaluation. The checked-in launchers currently use different task variants and few-shot settings by model family and mode. Examples include:</p>
-          <div class="table-wrap" role="region" aria-label="Examples of checked-in evaluation differences" tabindex="0">
+        <section class="protocol-section" id="efficiency">
+          <h2>TPF and throughput</h2>
+          <h3>Tokens per forward pass (TPF)</h3>
+          <p>TPF measures how many realized output tokens a diffusion decoder advances per generation-time model evaluation. Across a benchmark, it is calculated as the total number of valid generated output tokens divided by the total number of denoiser forward evaluations (NFE), using summed counters rather than an average of per-example ratios.</p>
+          <ul>
+            <li>Prompt tokens and padding are excluded from the numerator.</li>
+            <li>Early stopping uses the actual output length before EOS, not the maximum canvas length.</li>
+            <li>Rejected or re-noised positions do not count as output tokens, while the forward evaluations used to process them remain in NFE.</li>
+          </ul>
+          <h3>Output throughput (token/s)</h3>
+          <p>Throughput runs use the model-specific SGLang serving implementation after warm-up. The reported calculation depends on the serving workload:</p>
+          <ul>
+            <li>At concurrency 1, completion tokens are divided by the full request latency and the median is reported across repeated requests.</li>
+            <li>Under concurrent serving, all successful completion tokens are divided by the full benchmark wall-clock duration, with concurrency reported alongside the result.</li>
+          </ul>
+          <p>DiffusionGemma and Nemotron Diffusion both provide model-specific SGLang serving paths for throughput measurement. Their upstream integration status differs, so every run records the exact implementation revision rather than relying only on an SGLang version label.</p>
+          <div class="runtime-links">
+            <a class="runtime-link" href="https://github.com/sgl-project/sglang/pull/27823">DiffusionGemma · SGLang reference runtime<span>Model runtime and diffusion sampler implementation →</span></a>
+            <a class="runtime-link" href="https://github.com/NVlabs/Nemotron-Labs-Diffusion/tree/main/sglang_spark">Nemotron Diffusion · SGLang reference runtime<span>Model-specific deployment and serving path →</span></a>
+            <a class="runtime-link" href="https://github.com/sgl-project/sglang/blob/main/docs/developer_guide/bench_serving.md">SGLang benchmark protocol<span>Output throughput, latency, warm-up, and run output →</span></a>
+          </div>
+          <p class="protocol-note">TPF measures decoding parallelism; token/s measures elapsed serving performance. They answer different questions and are never converted into one another.</p>
+        </section>
+
+        <section class="protocol-section" id="reporting">
+          <h2>Required run record</h2>
+          <div class="table-wrap" role="region" aria-label="Required evaluation run fields" tabindex="0">
             <table>
-              <thead><tr><th>Benchmark</th><th>LLaDA Instruct</th><th>Dream Instruct</th><th>Dream Base</th></tr></thead>
+              <thead><tr><th>Area</th><th>Required fields</th></tr></thead>
               <tbody>
-                <tr><td>GSM8K</td><td><code>gsm8k_cot</code>, 5-shot</td><td><code>gsm8k_cot</code>, 0-shot</td><td><code>gsm8k_cot</code>, 8-shot</td></tr>
-                <tr><td>MMLU-Pro</td><td><code>mmlu_pro</code>, 0-shot</td><td><code>mmlu_pro</code>, 4-shot</td><td>Not declared in the base block</td></tr>
-                <tr><td>GPQA</td><td><code>gpqa_diamond_generative_n_shot</code>, 5-shot</td><td><code>gpqa_main_n_shot</code>, 5-shot</td><td><code>gpqa_main_n_shot</code>, 5-shot</td></tr>
+                <tr><td>Model</td><td>Checkpoint and tokenizer revision, chat template, decoding mode, sampler parameters, maximum output length.</td></tr>
+                <tr><td>Evaluation</td><td>Task-config commit, dataset revision and split, few-shot count, repeat count, answer filter, scorer, raw machine-readable output.</td></tr>
+                <tr><td>Efficiency</td><td>Serving backend and commit, GPU model and count, dtype or quantization, batch size or concurrency, input/output lengths, warm-up count, timed repeats, token-counting rule, timing boundary.</td></tr>
+                <tr><td>Statistics</td><td>Number of measured runs and the reported summary statistic; repeated timing runs should report at least the median.</td></tr>
               </tbody>
             </table>
           </div>
-          <p>AIME, LCBv6, HLE, SciCode, and all agentic benchmark launch manifests are not present in this branch. They require task-specific documentation before they can be treated as independently reproducible here.</p>
-        </section>
-
-        <section class="protocol-section" id="metrics">
-          <span class="section-number">04</span>
-          <h2>Accuracy and aggregation</h2>
-          <p>The current page extracts the first numeric value stored in each accuracy cell and displays it as the primary score. If a raw cell contains multiple values—for example <code>36.9% / 70.7%</code>—only the first value is used by the chart and composite. The meaning of every secondary value still needs source-level documentation.</p>
-          <div class="formula">
-            <div class="formula-label">Current composite</div>
-            <div class="formula-main">Composite = sum of available primary accuracy values ÷ number of available accuracy cells</div>
-          </div>
-          <p>The mean is unweighted. Missing cells are excluded rather than treated as zero, and coverage is shown alongside the composite. Because models can have different coverage, task variants, and few-shot settings, the composite is a descriptive overview—not a controlled scientific ranking.</p>
-        </section>
-
-        <section class="protocol-section" id="throughput">
-          <span class="section-number">05</span>
-          <h2>TPF and token/s</h2>
-          <h3>Tokens per forward pass (TPF)</h3>
-          <p>TPF is displayed as the reported number of generated tokens advanced per model forward pass. It describes decoding parallelism, not elapsed speed. This branch does not yet include formal TPF instrumentation or a shared collection script for every displayed model.</p>
-          <h3>Throughput (token/s)</h3>
-          <p>Token/s is a wall-clock throughput measurement. The Throughput Summary shows only values explicitly marked as TPS in the source data. It never converts or infers token/s from TPF. At present, this leaves three reported IFBench measurements: DiffusionGemma-26B-think, DiffusionGemma-26B-no-think, and Nemotron Diffusion-8B.</p>
-          <div class="formula">
-            <div class="formula-label">Target measurement definition</div>
-            <div class="formula-main">token/s = generated output tokens ÷ synchronized sampling wall time</div>
-          </div>
-          <p>A publishable throughput run should record accelerator model and count, batch size, prompt and output lengths, dtype, cache mode, decoding settings, warm-up runs, timed repetitions, synchronization method, software revisions, and the reported statistic (preferably median with dispersion). Fast-dLLM examples in this repository time <code>sampler.sample</code>, but they do not yet constitute a full leaderboard protocol because warm-up, repeated trials, and explicit device synchronization are not standardized there.</p>
-        </section>
-
-        <section class="protocol-section" id="missing">
-          <span class="section-number">06</span>
-          <h2>Missing values</h2>
-          <p>An em dash means that a value is not available to the current page. It does not mean zero. The current data structure does not reliably distinguish “not evaluated,” “evaluation failed,” and “evaluated but not reported”; future result manifests should preserve those states separately.</p>
-        </section>
-
-        <section class="protocol-section" id="manifest">
-          <span class="section-number">07</span>
-          <h2>Required result manifest</h2>
-          <p>For a new result to be directly reproducible and comparable, its submission should include:</p>
-          <ul>
-            <li>model identifier, immutable revision, tokenizer revision, and chat template;</li>
-            <li>benchmark name, dataset revision, split, task implementation, metric key, and few-shot count;</li>
-            <li>complete evaluation command plus decoding, sampling, cache, stopping, and length settings;</li>
-            <li>dLLM, harness, and dependency revisions, together with the raw machine-readable output;</li>
-            <li>hardware, accelerator count, dtype, batch size, and distributed execution configuration;</li>
-            <li>for throughput: warm-up count, timed repetitions, synchronization boundary, token-counting rule, and summary statistic;</li>
-            <li>provenance state and a durable link to the original artifact or external source.</li>
-          </ul>
-        </section>
-
-        <section class="protocol-section" id="limitations">
-          <span class="section-number">08</span>
-          <h2>Known limitations</h2>
-          <ul>
-            <li>Per-cell provenance is not yet visible in the leaderboard interface.</li>
-            <li>Task revisions and sampling configurations are not normalized across all model families.</li>
-            <li>Several benchmark and agentic launch manifests are absent from this branch.</li>
-            <li>Secondary metrics stored in multi-value cells are not defined on the page.</li>
-            <li>The composite does not adjust for unequal coverage and should not be used as the sole basis for a model claim.</li>
-            <li>TPS values currently come from one agentic benchmark and are not a hardware-controlled cross-model study.</li>
-          </ul>
+          <p class="muted">An em dash on the leaderboard means that no value is available. It is never interpreted as zero.</p>
         </section>
 
         <section class="protocol-section" id="sources">
-          <span class="section-number">09</span>
           <h2>Implementation references</h2>
-          <p>These branch-pinned files define the repository behavior summarized above.</p>
           <div class="sources">
             <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/README.md#evaluation">README · evaluation entry point ↗</a>
-            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/.gitmodules">Harness submodule configuration ↗</a>
-            <a href="https://github.com/ZHZisZZ/lm-evaluation-harness/tree/dca091dbee3d6ee1dab268e9f649aa64e8db97d8">Pinned harness commit ↗</a>
-            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/dllm/core/eval/base.py">Base evaluation adapter ↗</a>
-            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/dllm/core/eval/mdlm.py">Masked diffusion evaluation adapter ↗</a>
-            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/dllm/core/eval/bd3lm.py">Block diffusion evaluation adapter ↗</a>
+            <a href="https://github.com/ZHZisZZ/lm-evaluation-harness/tree/dca091dbee3d6ee1dab268e9f649aa64e8db97d8/lm_eval/tasks">Pinned lm-evaluation-harness tasks ↗</a>
             <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/examples/llada/eval.sh">LLaDA evaluation launcher ↗</a>
             <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/examples/dream/eval.sh">Dream evaluation launcher ↗</a>
-            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/examples/fastdllm/llada/sample.py">Fast-dLLM LLaDA timing example ↗</a>
-            <a href="https://github.com/ZHZisZZ/dllm/blob/leaderboard/examples/fastdllm/dream/sample.py">Fast-dLLM Dream timing example ↗</a>
+            <a href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/diffusion_gemma/generation_diffusion_gemma.py">DiffusionGemma · TPF counters and generation ↗</a>
+            <a href="https://github.com/NVlabs/Nemotron-Labs-Diffusion/blob/main/evaluate.py">Nemotron Diffusion · evaluation and NFE counters ↗</a>
           </div>
         </section>
       </article>
     </div>
 
     <footer class="page-footer">
-      <span>dLLM · evaluation protocol · draft v0.1</span>
+      <span>dLLM · evaluation protocol</span>
       <a href="index.html">Return to the leaderboard →</a>
     </footer>
   </main>
