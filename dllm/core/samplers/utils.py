@@ -3,6 +3,11 @@ import torch
 from dllm.core.schedulers import BaseAlphaScheduler
 
 
+def _high_precision_dtype(device: torch.device) -> torch.dtype:
+    """float64 everywhere except MPS, which doesn't support it."""
+    return torch.float32 if torch.device(device).type == "mps" else torch.float64
+
+
 def get_num_transfer_tokens(
     mask_index: torch.Tensor,
     steps: int,
@@ -29,16 +34,17 @@ def get_num_transfer_tokens(
     num_transfer_tokens = torch.zeros(
         mask_num.size(0), steps, device=mask_index.device, dtype=torch.int64
     )
+    hp_dtype = _high_precision_dtype(mask_index.device)
     for i in range(mask_num.size(0)):
         for t, s, j in zip(range(steps, 0, -1), range(steps - 1, -1, -1), range(steps)):
             s /= steps
             t /= steps
             reverse_transfer_prob = 1 - scheduler.reverse_mask_prob(s=s, t=t)
             if not stochastic:
-                x = mask_num[i, 0].to(torch.float64) * reverse_transfer_prob
+                x = mask_num[i, 0].to(hp_dtype) * reverse_transfer_prob
                 num_transfer_tokens[i, j] = torch.round(x).to(torch.int64)
             else:
-                n = mask_num[i, 0].to(torch.float64)
+                n = mask_num[i, 0].to(hp_dtype)
                 num_transfer_tokens[i, j] = (
                     torch.distributions.Binomial(n, reverse_transfer_prob)
                     .sample()
@@ -77,7 +83,8 @@ def add_gumbel_noise(logits: torch.Tensor, temperature: float) -> torch.Tensor:
     """
     if temperature == 0:
         return logits
-    logits = logits.to(torch.float64)
-    noise = torch.rand_like(logits, dtype=torch.float64)
+    hp_dtype = _high_precision_dtype(logits.device)
+    logits = logits.to(hp_dtype)
+    noise = torch.rand_like(logits, dtype=hp_dtype)
     gumbel_noise = (-torch.log(noise)) ** temperature
     return logits.exp() / gumbel_noise

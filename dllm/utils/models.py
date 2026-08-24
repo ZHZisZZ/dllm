@@ -38,12 +38,12 @@ def get_model(
     )
 
     # Device map: skip when ZeRO-3
-    device_map = (
-        {"": accelerate.PartialState().local_process_index}
-        if not transformers.modeling_utils.is_deepspeed_zero3_enabled()
-        and torch.cuda.is_available()
-        else None
-    )
+    device_map = None
+    if not transformers.modeling_utils.is_deepspeed_zero3_enabled():
+        if torch.cuda.is_available():
+            device_map = {"": accelerate.PartialState().local_process_index}
+        elif torch.backends.mps.is_available():
+            device_map = {"": "mps"}
 
     quant_config = None
     if load_in_4bit and transformers.utils.is_bitsandbytes_available():
