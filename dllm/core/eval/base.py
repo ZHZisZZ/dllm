@@ -7,7 +7,7 @@ Run: Not runnable directly; use pipeline eval entrypoints (e.g. dllm.pipelines.l
 """
 
 import dataclasses
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import accelerate
 import torch
@@ -20,12 +20,20 @@ from dllm.core.samplers import BaseSampler, BaseSamplerConfig
 from dllm.utils.configs import ModelArguments
 
 
+def _default_device() -> str:
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
 @dataclass
 class BaseEvalConfig:
     """Minimal config for base eval: device and batch_size."""
 
     pretrained: str = ""
-    device: str = "cuda"
+    device: str = field(default_factory=_default_device)
     batch_size: int = 1
 
     def get_model_config(self, pretrained: str):

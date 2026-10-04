@@ -78,6 +78,12 @@ def _prepare_for_sampling(
     base_mask = bid_k <= bid_q
     attn_mask = base_mask & valid_q & valid_k  # [B, 1, T, T]
 
+    # Let each padding query attend to itself so no row is fully masked.
+    # Fully-masked rows make SDPA return NaN on MPS, and the NaNs then leak into
+    # every token through later layers. Padding keys stay masked for valid
+    # queries, so this doesn't change outputs at valid positions.
+    attn_mask = attn_mask | torch.eye(T, dtype=torch.bool, device=device)
+
     return attn_mask, position_ids
 
 
