@@ -39,11 +39,15 @@ def get_model(
 
     # Device map: skip when ZeRO-3
     device_map = None
+    move_to_mps = False
     if not transformers.modeling_utils.is_deepspeed_zero3_enabled():
         if torch.cuda.is_available():
             device_map = {"": accelerate.PartialState().local_process_index}
         elif torch.backends.mps.is_available():
-            device_map = {"": "mps"}
+            # Don't load with device_map={"": "mps"}: weights loaded straight onto
+            # MPS give wrong (and growing) gradients on repeated backward passes,
+            # which makes training diverge. Load on CPU, then move.
+            move_to_mps = True
 
     quant_config = None
     if load_in_4bit and transformers.utils.is_bitsandbytes_available():
@@ -68,6 +72,9 @@ def get_model(
         )
     except Exception:
         model = transformers.AutoModel.from_pretrained(model_name_or_path, **params)
+
+    if move_to_mps:
+        model = model.to("mps")
 
     # --- if quantized, prepare for LoRA / QLoRA training ---
     if load_in_4bit and quant_config is not None:
