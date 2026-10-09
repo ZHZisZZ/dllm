@@ -79,7 +79,13 @@ def test_a2d_attention_mask_invariance(
       All logits on the 4 real tokens must match single-sample "no_padding"
       for every base token set.
     """
-    torch.set_default_device("cuda")
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+    torch.set_default_device(device)
     model_path = dllm.utils.resolve_with_base_env(model_name_or_path, "BASE_MODELS_DIR")
     config = config_cls.from_pretrained(model_path, attn_implementation=attn_impl)
     model = model_cls(config)
@@ -115,6 +121,7 @@ def test_a2d_attention_mask_invariance(
     del model
     gc.collect()
     _cuda_cleanup()
+    torch.set_default_device("cpu")
 
 
 @pytest.mark.parametrize(
@@ -157,3 +164,57 @@ def test_a2d_fullmask_future_affects_past(model_name_or_path, config_cls, model_
 
     del model
     torch.cuda.empty_cache()
+
+
+@pytest.mark.parametrize(
+    "converted_path, model_cls",
+    [
+        (".models/a2d/Qwen3-0.6B", dllm.pipelines.a2d.A2DQwen3LMHeadModel),
+    ],
+)
+def test_a2d_converted_checkpoint(converted_path, model_cls):
+    """
+    Same checks as above, but on a checkpoint produced by
+    dllm/pipelines/a2d/convert.py (real weights instead of random init):
+      1) attention-mask / padding / batch invariance
+      2) bidirectional attention (future tokens affect past logits)
+    """
+    import os
+
+    if not os.path.isdir(converted_path):
+        pytest.skip(f"converted checkpoint not found: {converted_path}")
+
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+    model = (
+        model_cls.from_pretrained(converted_path, dtype=torch.float32)
+        .to(device)
+        .eval()
+    )
+
+    # 1) Mask invariance + batch consistency
+    outs_single = _forward_variants(model, use_position_ids=False)
+    _assert_invariance(outs_single, converted_path)
+    _assert_batch_equal_to_single(
+        single_no_pad=outs_single["no_padding"],
+        batch_nopad=_forward_batch_nopad(model, use_position_ids=False),
+        batch_padded=_forward_batch_padded(model, use_position_ids=False),
+        tag=converted_path,
+    )
+
+    # 2) Bidirectional: changing token 2 must change logits at position 1
+    a = torch.tensor([[101, 102, 103, 104]], device=device)
+    b = torch.tensor([[101, 102, 999, 104]], device=device)
+    with torch.no_grad():
+        la = model(a).logits
+        lb = model(b).logits
+    diff = (la[:, 1, :] - lb[:, 1, :]).abs().max().item()
+    assert diff > ERROR_THRESHOLD, f"full mask not active, diff={diff}"
+
+    del model
+    gc.collect()
+    _cuda_cleanup()
