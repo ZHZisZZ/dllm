@@ -1,3 +1,9 @@
+"""Qwen3 with A2D attention masks.
+
+From the repo root, verify BD3LM masking with:
+    python -m pytest scripts/tests/attention/test_bd3lm.py -k boolean_mask_blocks_attention
+"""
+
 from typing import Optional
 
 import torch
@@ -99,6 +105,17 @@ class A2DQwen3Model(transformers.Qwen3Model):
                 or (isinstance(attention_mask, torch.Tensor) and attention_mask.ndim == 4)
             ):
                 attention_mask = _prepare_4d_attention_mask(attention_mask, self.dtype)
+            elif (
+                self.config._attn_implementation == "eager"
+                and isinstance(attention_mask, torch.Tensor)
+                and attention_mask.dtype == torch.bool
+            ):
+                # Eager adds the mask to attention scores. A finite bias keeps
+                # softmax defined for fully masked padding queries.
+                dtype = inputs_embeds.dtype
+                attention_mask = torch.zeros_like(attention_mask, dtype=dtype).masked_fill_(
+                    ~attention_mask, torch.finfo(dtype).min
+                )
 
             # 3) Build causal mask mapping used by the attention layers
             causal_mask_mapping = {"full_attention": attention_mask}

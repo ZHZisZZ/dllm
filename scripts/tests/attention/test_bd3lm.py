@@ -1,7 +1,7 @@
 """
 BD3LM attention / KV-cache / concat equivalence tests.
 
-Run: pytest /mnt/lustrenew/mllm_aligned/dongzhichen/dllm/scripts/tests/attention/test_bd3lm.py -v
+Run from the repo root: python -m pytest scripts/tests/attention/test_bd3lm.py -v
 """
 
 import pytest
@@ -10,6 +10,42 @@ import torch
 import dllm
 
 from .common import ERROR_THRESHOLD
+
+
+@pytest.mark.parametrize("attn_implementation", ["eager", "sdpa"])
+@torch.inference_mode()
+def test_a2d_qwen3_bd3lm_boolean_mask_blocks_attention(attn_implementation):
+    from dllm.core.samplers.bd3lm import _prepare_for_sampling
+    from dllm.pipelines.a2d import A2DQwen3Config, A2DQwen3LMHeadModel
+
+    with torch.device("cpu"), torch.random.fork_rng(devices=[]):
+        torch.random.default_generator.manual_seed(42)
+        config = A2DQwen3Config(
+            vocab_size=64,
+            hidden_size=32,
+            intermediate_size=64,
+            num_hidden_layers=2,
+            num_attention_heads=4,
+            num_key_value_heads=2,
+            head_dim=8,
+            pad_token_id=0,
+            attn_implementation=attn_implementation,
+        )
+        model = A2DQwen3LMHeadModel(config).eval()
+
+    # Keep the same mask while changing a later block or a padding token.
+    inputs = torch.tensor([[0, 3, 5, 6], [0, 3, 7, 8], [9, 3, 5, 6]], device="cpu")
+    mask, positions = _prepare_for_sampling(inputs[:1], block_size=2, pad_token_id=0)
+    logits = model(
+        input_ids=inputs,
+        attention_mask=mask.expand(inputs.size(0), -1, -1, -1),
+        position_ids=positions.expand_as(inputs),
+        use_cache=False,
+    ).logits
+
+    assert torch.isfinite(logits).all()
+    torch.testing.assert_close(logits[0, 1], logits[1, 1])
+    torch.testing.assert_close(logits[0, 1:], logits[2, 1:])
 
 
 @pytest.mark.parametrize(
